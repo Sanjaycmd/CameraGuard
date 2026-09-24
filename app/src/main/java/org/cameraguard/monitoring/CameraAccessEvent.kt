@@ -1,7 +1,4 @@
 package org.cameraguard.monitoring
 
-data class CameraAccessEvent(
-    val timestamp: Long,
-    val source: String,
-    val isUnexpected: Boolean
-)
+// Typealias for backward compatibility with existing monitoring imports
+typealias CameraAccessEvent = org.cameraguard.data.model.CameraAccessEvent
