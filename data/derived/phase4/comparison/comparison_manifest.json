@@ -1,0 +1,34 @@
+{
+  "manifest_version": "1.0.0",
+  "phase": "4.6.5",
+  "timestamp_iso": "2026-09-25T19:50:10.441706+00:00",
+  "baseline_commit": "89c4e8f",
+  "dataset_summary": {
+    "total_reconstructed_sessions": 92,
+    "excluded_legacy_sessions": 3,
+    "included_ml_sessions": 89,
+    "targeted_cohort_size": 41
+  },
+  "audits_completed": {
+    "task2_perfect_accuracy_audit": {
+      "result": "CONFIRMED_AND_EXPLAINED",
+      "explanation": "Separation driven by hardware camera availability signals (f10_camera_id, f11_is_back_camera, f06_package_confidence). Detectable deterministically via native CameraManager callback; ML is redundant for Task 2."
+    },
+    "task6_hybrid_100pct_audit": {
+      "result": "DISCREPANCY_EXPOSED_AND_CORRECTED",
+      "explanation": "Phase 4.6.4 metric of 1.000 represented 100% UNKNOWN resolution rate, not ground truth accuracy. True ground-truth accuracy is 92.68% on Targeted_41 and 92.13% on Accumulated_89."
+    },
+    "oof_integrity_audit": {
+      "result": "VERIFIED_STRICT_OOF",
+      "explanation": "Zero session overlap across train and test folds. Strict session-level stratified 5-fold cross-validation verified."
+    }
+  },
+  "candidate_recommendation_phase47": {
+    "primary_recommendation": "Decision Tree (or Shallow Random Forest) in a Two-Tier Cascade with Deterministic Rules",
+    "justification": "Preserves 100% deterministic safety on known user actions while resolving 100% of UNKNOWN ambiguity with 92.68% ground truth accuracy. Decision Tree offers zero runtime dependency (native Kotlin code)."
+  },
+  "threat_model_integrity": {
+    "verified_malware_samples": 0,
+    "statement": "The dataset contains ZERO verified malicious/spyware samples. Automated background triggers and screen-off continuations represent authorized controlled research conditions, NOT confirmed malware."
+  }
+}

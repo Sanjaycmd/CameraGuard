@@ -1,0 +1,12 @@
+feature_id,feature_name,variance_targeted,unique_values_targeted,variance_accumulated,unique_values_accumulated,task2_deterministic_separator,task3_deterministic_separator,production_observability_status,engineering_notes
+F01,f01_screen_state,0.0,1,0.49892690316879196,2,False,False,PRODUCTION_OBSERVABLE_SCREEN,DisplayManager state; captures interactive vs non-interactive background execution
+F02,f02_is_interactive,0.0,1,0.49892690316879196,2,False,False,PRODUCTION_OBSERVABLE_SCREEN,DisplayManager state; captures interactive vs non-interactive background execution
+F03,f03_is_locked,0.0,1,0.12473172579219799,2,False,False,PRODUCTION_OBSERVABLE_SCREEN,DisplayManager state; captures interactive vs non-interactive background execution
+F04,f04_perm_clamped,0.0,1,0.0,1,False,False,CLAMPED_SENTINEL_UNVERIFIED,Clamped to -1.0 to prevent unobservable permission oracle leakage in unprivileged monitoring
+F05,f05_known_camera_app,0.0,1,0.0,1,False,False,PRODUCTION_OBSERVABLE,Standard production telemetry signal
+F06,f06_package_confidence,0.6579417013682333,3,0.6567352606994066,3,True,False,PRODUCTION_HEURISTIC_ATTRIBUTION,"Attribution heuristic; 0.0 when camera is closed, separating Task 2"
+F07,f07_inference_method,0.6579417013682332,3,0.7067289483651052,3,True,False,PRODUCTION_HEURISTIC_ATTRIBUTION,"Attribution heuristic; 0.0 when camera is closed, separating Task 2"
+F08,f08_delta_resumed_ms,3605.814396192742,2,3656.09115010731,2,False,False,PRODUCTION_OBSERVABLE_TIMING,UsageStatsManager delta; primary non-linear discriminator for Task 3 contextual intent
+F09,f09_recent_activity_count,0.5746579417013683,3,0.6014392122206792,3,False,True,PRODUCTION_OBSERVABLE,Standard production telemetry signal
+F10,f10_camera_id,0.4009518143961928,3,0.4163615705087742,3,True,False,PRODUCTION_OBSERVABLE_HARDWARE,Direct CameraManager callback telemetry; -1.0 sentinel when camera is closed deterministically separates Task 2
+F11,f11_is_back_camera,0.8185603807257585,3,0.866304759500063,3,True,False,PRODUCTION_OBSERVABLE_HARDWARE,Direct CameraManager callback telemetry; -1.0 sentinel when camera is closed deterministically separates Task 2
