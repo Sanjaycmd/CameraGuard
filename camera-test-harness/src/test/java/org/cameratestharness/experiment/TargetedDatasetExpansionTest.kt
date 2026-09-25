@@ -283,6 +283,98 @@ class TargetedDatasetExpansionTest {
         assertEquals("GRANTED", researchRow.t0Features.f04HasCameraPermission)
     }
 
+    @Test
+    fun `test 16 - PERMISSION_DENIED scenario with GRANTED runtime permission and no camera acquisition is valid`() {
+        val permDeniedWithGrantedPerm = createRecord(
+            sampleId = "exp_perm_denied_granted",
+            scenario = "PERMISSION_DENIED",
+            gt = "PERMISSION_DENIED",
+            userAction = "USER_EVALUATED_PERMISSION_DENIED",
+            camEvent = "NONE",
+            perm = "GRANTED",
+            fgs = false,
+            ts = "2026-09-25T10:00:00.000Z"
+        )
+
+        val result = ExperimentDataValidator.validateRecords(listOf(permDeniedWithGrantedPerm))
+        assertTrue("PERMISSION_DENIED with GRANTED permission and no camera acquisition must be valid", result.isValid)
+        assertTrue(result.errors.isEmpty())
+
+        val permDeniedWithDeniedPerm = permDeniedWithGrantedPerm.copy(
+            cameraPermission = "DENIED"
+        )
+        val resultDenied = ExperimentDataValidator.validateRecords(listOf(permDeniedWithDeniedPerm))
+        assertTrue("PERMISSION_DENIED with DENIED permission must also be valid", resultDenied.isValid)
+    }
+
+    @Test
+    fun `test 17 - PERMISSION_DENIED scenario with active camera events or FGS is strictly rejected`() {
+        val baseRecord = createRecord(
+            sampleId = "exp_perm_denied_violations",
+            scenario = "PERMISSION_DENIED",
+            gt = "PERMISSION_DENIED",
+            userAction = "USER_EVALUATED_PERMISSION_DENIED",
+            camEvent = "NONE",
+            perm = "GRANTED",
+            fgs = false,
+            ts = "2026-09-25T10:00:00.000Z"
+        )
+
+        // 1. CAMERA_OPENED is invalid
+        val openRecord = baseRecord.copy(cameraEvent = "CAMERA_OPENED")
+        val resOpen = ExperimentDataValidator.validateRecords(listOf(openRecord))
+        assertFalse(resOpen.isValid)
+        assertTrue(resOpen.errors.any { it.contains("cannot have active camera event") })
+
+        // 2. CAPTURE_SESSION_STARTED is invalid
+        val captureRecord = baseRecord.copy(cameraEvent = "CAPTURE_SESSION_STARTED")
+        val resCapture = ExperimentDataValidator.validateRecords(listOf(captureRecord))
+        assertFalse(resCapture.isValid)
+        assertTrue(resCapture.errors.any { it.contains("cannot have active camera event") })
+
+        // 3. Active foreground service is invalid
+        val fgsRecord = baseRecord.copy(foregroundServiceActive = true)
+        val resFgs = ExperimentDataValidator.validateRecords(listOf(fgsRecord))
+        assertFalse(resFgs.isValid)
+        assertTrue(resFgs.errors.any { it.contains("active foreground service") })
+
+        // 4. CAMERA_OPEN_REQUESTED is invalid
+        val openReqRecord = baseRecord.copy(cameraEvent = "CAMERA_OPEN_REQUESTED")
+        val resOpenReq = ExperimentDataValidator.validateRecords(listOf(openReqRecord))
+        assertFalse(resOpenReq.isValid)
+        assertTrue(resOpenReq.errors.any { it.contains("cannot have active camera event") })
+    }
+
+    @Test
+    fun `test 18 - PERMISSION_DENIED session with GRANTED runtime permission reconstructs validly without contradiction`() {
+        val sessionRecords = listOf(
+            createRecord(
+                sampleId = "exp_perm_denied_session",
+                scenario = "PERMISSION_DENIED",
+                gt = "PERMISSION_DENIED",
+                userAction = "USER_EVALUATED_PERMISSION_DENIED",
+                camEvent = "NONE",
+                perm = "GRANTED",
+                fgs = false,
+                actState = "RESUMED",
+                vis = "FOREGROUND",
+                sessState = "IDLE",
+                ts = "2026-09-25T10:00:00.000Z"
+            )
+        )
+
+        val sessions = SessionReconstructor.reconstructSessions(sessionRecords)
+        assertEquals(1, sessions.size)
+        val session = sessions[0]
+        assertEquals("PERMISSION_DENIED", session.groundTruthContext)
+        assertEquals("GRANTED", session.permissionState)
+        assertEquals(ReconstructedSession.CameraLifecycleState.NO_CAMERA, session.cameraLifecycle)
+        assertFalse("Session must not be contradictory", session.isContradictoryGroundTruth)
+        assertTrue("Session lifecycle must be valid", session.isValidLifecycle)
+        assertFalse("Session must not require review", session.reviewRequired)
+        assertFalse("Session must not be excluded from ML", session.isExcludedFromMl)
+    }
+
     private fun createRecord(
         sampleId: String = "exp_default",
         scenario: String = "NORMAL_FOREGROUND_CAMERA",

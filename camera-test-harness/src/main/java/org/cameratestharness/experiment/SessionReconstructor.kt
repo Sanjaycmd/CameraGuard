@@ -129,8 +129,9 @@ object SessionReconstructor {
                         isContradictoryGt = true
                         reviewReasons.add("Camera acquired under PERMISSION_DENIED scenario")
                     }
-                    if (permissionState == "GRANTED") {
-                        issues.add("PERMISSION_DENIED scenario has camera_permission == GRANTED")
+                    // Pre-Phase-3.5.1 legacy sessions attempted camera start while permission was granted
+                    if (permissionState == "GRANTED" && sortedRecords.any { it.userAction == "USER_PRESSED_START" }) {
+                        issues.add("PERMISSION_DENIED legacy session attempted USER_PRESSED_START with GRANTED permission")
                         isContradictoryGt = true
                     }
                 }

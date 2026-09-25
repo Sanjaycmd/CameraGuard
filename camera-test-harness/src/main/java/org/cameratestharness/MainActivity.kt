@@ -229,21 +229,6 @@ fun HarnessScreen() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    LaunchedEffect(hasCameraPermission) {
-        if (hasCameraPermission && currentScenario == ExperimentScenario.PERMISSION_DENIED) {
-            localStatusMessage = "Camera permission became GRANTED. Reconfiguring to Normal Foreground Camera."
-            ExperimentLogger.recordEvent(
-                userAction = "PERMISSION_STATE_CHANGED",
-                cameraPermission = "GRANTED",
-                activityState = "RESUMED",
-                appVisibility = "FOREGROUND",
-                notes = "Camera permission changed to GRANTED while PERMISSION_DENIED was selected; auto-reconfiguring scenario"
-            )
-            ExperimentLogger.setScenario(ExperimentScenario.NORMAL_FOREGROUND_CAMERA)
-            permissionDeniedEvaluated = false
-        }
-    }
-
     val isCameraActive = harnessState in listOf(
         HarnessState.CAMERA_OPEN,
         HarnessState.CAPTURE_SESSION_ACTIVE,
@@ -343,6 +328,8 @@ fun HarnessScreen() {
                             OutlinedButton(
                                 onClick = {
                                     if (repetition > 1 && !isServiceRunning && !isCameraActive) {
+                                        permissionDeniedEvaluated = false
+                                        observationEvaluated = false
                                         ExperimentLogger.setRepetition(repetition - 1)
                                     }
                                 },
@@ -354,6 +341,8 @@ fun HarnessScreen() {
                             Button(
                                 onClick = {
                                     if (!isServiceRunning && !isCameraActive) {
+                                        permissionDeniedEvaluated = false
+                                        observationEvaluated = false
                                         ExperimentLogger.incrementRepetition()
                                     }
                                 },
@@ -532,13 +521,8 @@ fun HarnessScreen() {
                     onClick = {
                         // Handle special non-camera scenarios
                         if (currentScenario == ExperimentScenario.PERMISSION_DENIED) {
-                            if (hasCameraPermission) {
-                                localStatusMessage = "Camera permission is currently GRANTED. Cannot evaluate PERMISSION_DENIED."
-                                Toast.makeText(context, "Permission is granted; cannot evaluate PERMISSION_DENIED", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
                             if (permissionDeniedEvaluated) {
-                                localStatusMessage = "PERMISSION_DENIED already evaluated. Select another scenario."
+                                localStatusMessage = "PERMISSION_DENIED already evaluated. Select another scenario or change repetition."
                                 return@Button
                             }
                             permissionDeniedEvaluated = true
@@ -547,9 +531,10 @@ fun HarnessScreen() {
                                 userAction = "USER_EVALUATED_PERMISSION_DENIED",
                                 cameraEvent = "NONE",
                                 cameraId = "NONE",
-                                cameraPermission = "DENIED",
+                                cameraPermission = if (hasCameraPermission) "GRANTED" else "DENIED",
                                 activityState = "RESUMED",
                                 appVisibility = "FOREGROUND",
+                                foregroundServiceActive = false,
                                 sessionState = "IDLE",
                                 notes = "rep=$repetition;Permission Denied scenario evaluated; camera acquisition withheld"
                             )

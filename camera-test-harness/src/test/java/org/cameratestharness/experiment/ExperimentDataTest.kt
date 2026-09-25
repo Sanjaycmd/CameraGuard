@@ -298,13 +298,13 @@ class ExperimentDataTest {
         assertEquals("DENIED", records[0].cameraPermission)
         assertEquals("NONE", records[0].cameraEvent)
 
-        // If permission changes to GRANTED afterward, old DENIED records remain intact
-        // but new records cannot falsely claim ground truth is PERMISSION_DENIED
+        // If permission is GRANTED and camera acquisition is withheld, ground truth remains PERMISSION_DENIED
+        // reflecting the controlled negative evaluation scenario
         ExperimentLogger.recordEvent(
             userAction = "APP_RESUMED",
             cameraEvent = "NONE",
             cameraPermission = "GRANTED",
-            notes = "Permission became granted"
+            notes = "Permission is granted in OS but camera withheld in PERMISSION_DENIED scenario"
         )
 
         val updatedRecords = ExperimentLogger.getRecords()
@@ -314,13 +314,20 @@ class ExperimentDataTest {
         assertEquals("PERMISSION_DENIED", updatedRecords[0].groundTruthContext)
         assertEquals("DENIED", updatedRecords[0].cameraPermission)
 
-        // New record 1 cannot falsely claim PERMISSION_DENIED when permission is GRANTED
-        assertNotEquals(
-            "Ground truth cannot be PERMISSION_DENIED when permission is GRANTED",
-            "PERMISSION_DENIED",
-            updatedRecords[1].groundTruthContext
-        )
+        // Record 1 maintains PERMISSION_DENIED ground truth with GRANTED runtime permission
+        assertEquals("PERMISSION_DENIED", updatedRecords[1].groundTruthContext)
         assertEquals("GRANTED", updatedRecords[1].cameraPermission)
+
+        // But if camera is actually opened, it cannot claim PERMISSION_DENIED ground truth
+        ExperimentLogger.recordEvent(
+            userAction = "NONE",
+            cameraEvent = "CAMERA_OPENED",
+            cameraPermission = "GRANTED",
+            notes = "Camera opened invalidly"
+        )
+        val recordsWithActiveCamera = ExperimentLogger.getRecords()
+        assertEquals(3, recordsWithActiveCamera.size)
+        assertNotEquals("PERMISSION_DENIED", recordsWithActiveCamera[2].groundTruthContext)
     }
 
     @Test
@@ -554,9 +561,9 @@ class ExperimentDataTest {
     }
 
     @Test
-    fun `test 18 - ground truth consistency invariants - PERMISSION_DENIED with GRANTED permission is rejected by validator`() {
-        val badRecord = ExperimentRecord(
-            sampleId = "exp_invalid_perm",
+    fun `test 18 - ground truth consistency invariants - PERMISSION_DENIED with GRANTED permission is valid when acquisition withheld, but active camera rejected`() {
+        val validRecordGranted = ExperimentRecord(
+            sampleId = "exp_valid_perm_granted",
             timestamp = "2026-09-25T12:00:00.000Z",
             scenarioId = "PERMISSION_DENIED",
             groundTruthContext = "PERMISSION_DENIED",
@@ -576,9 +583,23 @@ class ExperimentDataTest {
             cameraAvailability = "AVAILABLE"
         )
 
-        val result = ExperimentDataValidator.validateRecords(listOf(badRecord))
-        assertFalse("Validator must reject PERMISSION_DENIED ground truth with GRANTED cameraPermission", result.isValid)
-        assertTrue(result.errors.any { it.contains("PERMISSION_DENIED ground truth cannot have camera_permission == 'GRANTED'") })
+        val validResult = ExperimentDataValidator.validateRecords(listOf(validRecordGranted))
+        assertTrue("Validator must accept PERMISSION_DENIED ground truth with GRANTED cameraPermission when acquisition withheld", validResult.isValid)
+        assertTrue(validResult.errors.isEmpty())
+
+        val invalidActiveCameraRecord = validRecordGranted.copy(
+            cameraEvent = "CAMERA_OPENED"
+        )
+        val invalidResult = ExperimentDataValidator.validateRecords(listOf(invalidActiveCameraRecord))
+        assertFalse("Validator must reject PERMISSION_DENIED ground truth when camera event is active", invalidResult.isValid)
+        assertTrue(invalidResult.errors.any { it.contains("cannot have active camera event") })
+
+        val invalidFgsRecord = validRecordGranted.copy(
+            foregroundServiceActive = true
+        )
+        val invalidFgsResult = ExperimentDataValidator.validateRecords(listOf(invalidFgsRecord))
+        assertFalse("Validator must reject PERMISSION_DENIED ground truth when foreground service is active", invalidFgsResult.isValid)
+        assertTrue(invalidFgsResult.errors.any { it.contains("active foreground service") })
     }
 
     @Test

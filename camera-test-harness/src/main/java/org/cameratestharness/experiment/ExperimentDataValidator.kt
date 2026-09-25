@@ -61,11 +61,8 @@ object ExperimentDataValidator {
 
             // 7. Ground Truth Consistency Invariants
             if (record.groundTruthContext == GroundTruthContext.PERMISSION_DENIED.label) {
-                if (record.cameraPermission == "GRANTED") {
-                    errors.add("Row $rowNum: PERMISSION_DENIED ground truth cannot have camera_permission == 'GRANTED'")
-                }
-                if (record.cameraEvent in listOf("CAMERA_OPENED", "CAPTURE_SESSION_STARTED")) {
-                    errors.add("Row $rowNum: PERMISSION_DENIED ground truth cannot have active camera event '${record.cameraEvent}'")
+                if (record.cameraEvent in listOf("CAMERA_OPEN_REQUESTED", "CAMERA_OPENING", "CAMERA_OPENED", "CAPTURE_SESSION_STARTED", "CAMERA_STOP_REQUESTED", "CAMERA_CLOSED") || record.foregroundServiceActive) {
+                    errors.add("Row $rowNum: PERMISSION_DENIED ground truth cannot have active camera event '${record.cameraEvent}' or active foreground service")
                 }
             }
 

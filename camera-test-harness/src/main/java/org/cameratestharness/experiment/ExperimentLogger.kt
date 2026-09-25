@@ -332,12 +332,25 @@ object ExperimentLogger {
         activityState: String,
         foregroundServiceActive: Boolean
     ): String {
-        // Invariant 1: If cameraPermission is GRANTED, ground truth can NEVER be PERMISSION_DENIED
+        // Invariant 1: PERMISSION_DENIED represents a controlled negative / no-acquisition experiment.
+        // It allows ground_truth_context = PERMISSION_DENIED even when cameraPermission == "GRANTED",
+        // as long as camera acquisition is intentionally withheld (cameraEvent == "NONE", no active FGS).
         if (scenario == ExperimentScenario.PERMISSION_DENIED) {
-            return if (cameraPermission == "DENIED") {
-                GroundTruthContext.PERMISSION_DENIED.label
-            } else if (cameraPermission == "GRANTED") {
-                GroundTruthContext.NO_CAMERA_ACTIVITY.label
+            val hasActiveCamera = cameraEvent in listOf(
+                "CAMERA_OPEN_REQUESTED",
+                "CAMERA_OPENING",
+                "CAMERA_OPENED",
+                "CAPTURE_SESSION_STARTED",
+                "CAMERA_STOP_REQUESTED",
+                "CAMERA_CLOSED"
+            ) || foregroundServiceActive
+
+            return if (hasActiveCamera) {
+                if (appVisibility == "BACKGROUND" || activityState in listOf("STOPPED", "PAUSED")) {
+                    GroundTruthContext.USER_INITIATED_BACKGROUND_CONTINUATION.label
+                } else {
+                    GroundTruthContext.USER_INITIATED_FOREGROUND.label
+                }
             } else {
                 GroundTruthContext.PERMISSION_DENIED.label
             }
