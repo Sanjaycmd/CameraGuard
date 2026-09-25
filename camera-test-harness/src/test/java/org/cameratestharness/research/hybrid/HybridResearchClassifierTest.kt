@@ -268,6 +268,74 @@ class HybridResearchClassifierTest {
         assertEquals(3, nonAcqErrors.size)
     }
 
+    @Test
+    fun `test 11 - evaluateDefaultDecisionTree corresponds exactly to exported model json`() {
+        // Branch 1: High package confidence (> 1.50) -> LEGITIMATE
+        val v1 = createSampleFeatureVector().copy(f06PackageConfidence = 2.0)
+        assertEquals(HybridClassification.LEGITIMATE, HybridResearchClassifier.evaluateDefaultDecisionTree(v1))
+
+        // Branch 2: Low confidence (<= 1.50), inference <= 1.00, activity <= 1.00 -> CONTROL
+        val v2 = createSampleFeatureVector().copy(
+            f06PackageConfidence = 1.0,
+            f07InferenceMethod = 1.0,
+            f09RecentActivityCount = 0.0,
+            f03IsLocked = -1.0
+        )
+        assertEquals(HybridClassification.CONTROL, HybridResearchClassifier.evaluateDefaultDecisionTree(v2))
+
+        // Branch 3: Low confidence, inference <= 1.00, activity > 1.00 -> AMBIGUOUS
+        val v3 = createSampleFeatureVector().copy(
+            f06PackageConfidence = 1.0,
+            f07InferenceMethod = 1.0,
+            f09RecentActivityCount = 2.0
+        )
+        assertEquals(HybridClassification.AMBIGUOUS, HybridResearchClassifier.evaluateDefaultDecisionTree(v3))
+
+        // Branch 4: Low confidence, inference > 1.00, activity <= 1.50, delta <= 59.50 -> AMBIGUOUS
+        val v4 = createSampleFeatureVector().copy(
+            f06PackageConfidence = 1.0,
+            f07InferenceMethod = 2.0,
+            f09RecentActivityCount = 1.0,
+            f08DeltaResumedMs = 40.0
+        )
+        assertEquals(HybridClassification.AMBIGUOUS, HybridResearchClassifier.evaluateDefaultDecisionTree(v4))
+
+        // Branch 5: Low confidence, inference > 1.00, activity <= 1.50, delta > 59.50 -> LEGITIMATE
+        val v5 = createSampleFeatureVector().copy(
+            f06PackageConfidence = 1.0,
+            f07InferenceMethod = 2.0,
+            f09RecentActivityCount = 1.0,
+            f08DeltaResumedMs = 120.0
+        )
+        assertEquals(HybridClassification.LEGITIMATE, HybridResearchClassifier.evaluateDefaultDecisionTree(v5))
+
+        // Branch 6: Low confidence, inference > 1.00, activity > 1.50 -> AMBIGUOUS
+        val v6 = createSampleFeatureVector().copy(
+            f06PackageConfidence = 1.0,
+            f07InferenceMethod = 2.0,
+            f09RecentActivityCount = 2.0
+        )
+        assertEquals(HybridClassification.AMBIGUOUS, HybridResearchClassifier.evaluateDefaultDecisionTree(v6))
+    }
+
+    @Test
+    fun `test 12 - phase 465 to 467 reconciliation artifact records exact session discrepancy`() {
+        val hybridDir = getComparisonOutputDir()
+        val reconFile = File(hybridDir, "phase465_phase467_reconciliation.csv")
+
+        assertTrue("phase465_phase467_reconciliation.csv must exist", reconFile.exists())
+        val lines = reconFile.readLines()
+        assertEquals("Must have header + 89 sessions", 90, lines.size)
+
+        // Exactly one session must have changed_prediction = True
+        val changedLines = lines.filter { it.endsWith(",True") }
+        assertEquals(1, changedLines.size)
+        assertTrue(
+            "Changed session must be exp_20260925_205242_fa728c: ${changedLines[0]}",
+            changedLines[0].contains("exp_20260925_205242_fa728c")
+        )
+    }
+
     private fun getComparisonOutputDir(): File {
         return getHybridOutputDir()
     }

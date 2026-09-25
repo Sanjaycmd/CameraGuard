@@ -157,27 +157,36 @@ class HybridResearchClassifier(
          * Translates the transparent tree structure into deterministic conditional branches.
          */
         fun evaluateDefaultDecisionTree(features: ResearchFeatureVector): HybridClassification {
-            // Root: package attribution confidence
-            if (features.f06PackageConfidence <= 1.50) {
-                // Low / Ambiguous attribution or negative control
-                if (features.f11IsBackCamera <= 0.00) {
-                    // No camera hardware acquired (sentinel -1.0) -> CONTROL
-                    return HybridClassification.CONTROL
+            // Level 1 split: f06_package_confidence <= 1.50
+            return if (features.f06PackageConfidence <= 1.50) {
+                // Level 2 split: f07_inference_method <= 1.00
+                if (features.f07InferenceMethod <= 1.00) {
+                    // Level 3 split: f09_recent_activity_count <= 1.00
+                    if (features.f09RecentActivityCount <= 1.00) {
+                        // Level 4 split: f03_is_locked <= -0.50 -> both sub-branches evaluate to CONTROL
+                        if (features.f03IsLocked <= -0.50) {
+                            HybridClassification.CONTROL
+                        } else {
+                            HybridClassification.CONTROL
+                        }
+                    } else {
+                        HybridClassification.AMBIGUOUS
+                    }
                 } else {
-                    // Camera hardware was acquired, check activity count & resumed delta
+                    // Level 2 split (f07_inference_method > 1.00): f09_recent_activity_count <= 1.50
                     if (features.f09RecentActivityCount <= 1.50) {
-                        return if (features.f08DeltaResumedMs <= 59.50) {
+                        // Level 3 split: f08_delta_resumed_ms <= 59.50
+                        if (features.f08DeltaResumedMs <= 59.50) {
                             HybridClassification.AMBIGUOUS
                         } else {
                             HybridClassification.LEGITIMATE
                         }
                     } else {
-                        return HybridClassification.AMBIGUOUS
+                        HybridClassification.AMBIGUOUS
                     }
                 }
             } else {
-                // High confidence user foreground app correlation -> LEGITIMATE
-                return HybridClassification.LEGITIMATE
+                HybridClassification.LEGITIMATE
             }
         }
     }
