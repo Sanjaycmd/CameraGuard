@@ -46,6 +46,7 @@ class CameraTestService : Service() {
         const val ACTION_STOP = "org.cameratestharness.action.STOP"
         const val ACTION_ARM_AUTOMATED_TRIGGER = "org.cameratestharness.action.ARM_AUTOMATED_TRIGGER"
         const val EXTRA_TRIGGER_DELAY_MS = "org.cameratestharness.extra.TRIGGER_DELAY_MS"
+        const val EXTRA_CAMERA_LENS_FACING = "org.cameratestharness.extra.CAMERA_LENS_FACING"
         const val DEFAULT_TRIGGER_DELAY_MS = 5000L
 
         private val _isRunning = MutableStateFlow(false)
@@ -66,6 +67,9 @@ class CameraTestService : Service() {
     private var pendingTriggerRunnable: Runnable? = null
     private var isStopping = false
 
+    private var desiredLensOption = CameraLensOption.AUTO_DEFAULT
+    private var selectedLensFacing: Int? = null
+
     private var cameraThread: HandlerThread? = null
     private var cameraHandler: Handler? = null
 
@@ -82,6 +86,11 @@ class CameraTestService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
+        val lensExtra = intent?.getStringExtra(EXTRA_CAMERA_LENS_FACING)
+        if (lensExtra != null) {
+            desiredLensOption = CameraLensOption.fromId(lensExtra)
+            Log.i(TAG, "[CameraTestHarness] Set desired lens option: ${desiredLensOption.name}")
+        }
 
         when (action) {
             ACTION_STOP -> {
@@ -282,39 +291,12 @@ class CameraTestService : Service() {
     }
 
     private fun selectCameraId(cameraManager: CameraManager): String? {
-        return try {
-            val idList = cameraManager.cameraIdList
-            Log.i(TAG, "[CameraTestHarness] Available camera IDs: ${idList.joinToString()}")
-
-            if (idList.isEmpty()) {
-                return null
-            }
-
-            var fallbackId: String? = null
-            var rearCameraId: String? = null
-
-            for (id in idList) {
-                try {
-                    val characteristics = cameraManager.getCameraCharacteristics(id)
-                    val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
-                    if (lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
-                        rearCameraId = id
-                        break
-                    } else if (fallbackId == null) {
-                        fallbackId = id
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "[CameraTestHarness] Could not inspect characteristics for camera $id", e)
-                }
-            }
-
-            val chosen = rearCameraId ?: fallbackId ?: idList[0]
-            Log.i(TAG, "[CameraTestHarness] Selected camera ID: $chosen")
-            chosen
-        } catch (e: Exception) {
-            Log.e(TAG, "[CameraTestHarness] Error querying camera IDs", e)
-            null
-        }
+        val available = CameraSelector.inspectAvailableCameras(cameraManager)
+        Log.i(TAG, "[CameraTestHarness] Available camera devices: ${available.map { "${it.cameraId}:${it.lensFacingName}" }}")
+        val result = CameraSelector.selectCamera(available, desiredLensOption)
+        Log.i(TAG, "[CameraTestHarness] CameraSelector: ${result.statusMessage}")
+        selectedLensFacing = result.selectedLensFacing
+        return result.selectedId
     }
 
     @SuppressLint("MissingPermission")
@@ -346,6 +328,15 @@ class CameraTestService : Service() {
                     _harnessState.value = HarnessState.CAMERA_OPEN
                     _serviceStatus.value = "Camera opened ($cameraId)"
                     val rep = ExperimentLogger.repetition.value
+                    val facingStr = when (selectedLensFacing) {
+                        CameraSelector.LENS_FACING_FRONT -> "FRONT"
+                        CameraSelector.LENS_FACING_BACK -> "BACK"
+                        CameraSelector.LENS_FACING_EXTERNAL -> "EXTERNAL"
+                        else -> "UNKNOWN"
+                    }
+                    val triggerNote = if (isAutomatedSession) "trigger=countdown_timer;Camera opened by automated trigger" else "trigger=user_start"
+                    val finalNote = "rep=$rep;$triggerNote;lens_facing=$facingStr"
+
                     ExperimentLogger.recordEvent(
                         userAction = if (isAutomatedSession) "AUTOMATED_TRIGGER_FIRED" else "NONE",
                         cameraEvent = "CAMERA_OPENED",
@@ -356,7 +347,7 @@ class CameraTestService : Service() {
                         sessionState = "CAMERA_OPEN",
                         cameraAvailability = "UNAVAILABLE",
                         recentUserInteraction = !isAutomatedSession,
-                        notes = if (isAutomatedSession) "rep=$rep;trigger=countdown_timer;Camera opened by automated trigger" else "rep=$rep;trigger=user_start"
+                        notes = finalNote
                     )
                     createCaptureSession(device, cameraManager, cameraId)
                 }

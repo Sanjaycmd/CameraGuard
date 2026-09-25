@@ -123,9 +123,11 @@ object FeatureExtractor {
         }
 
         // F11: Lens facing back camera (3-state: TRUE, FALSE, UNKNOWN)
-        val f11BackCamera = when (f10CameraId) {
-            "0" -> "TRUE"
-            "1" -> "FALSE"
+        val f11BackCamera = when {
+            events.any { it.notes.contains("lens_facing=FRONT", ignoreCase = true) } -> "FALSE"
+            events.any { it.notes.contains("lens_facing=BACK", ignoreCase = true) } -> "TRUE"
+            f10CameraId == "0" -> "TRUE"
+            f10CameraId == "1" -> "FALSE"
             else -> "UNKNOWN"
         }
 

@@ -184,6 +184,7 @@ fun HarnessScreen() {
 
     var permissionDeniedEvaluated by remember { mutableStateOf(false) }
     var observationEvaluated by remember { mutableStateOf(false) }
+    var selectedLensOption by remember { mutableStateOf(CameraLensOption.AUTO_DEFAULT) }
 
     val permissionsToRequest = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -366,6 +367,47 @@ fun HarnessScreen() {
                 }
             }
 
+            // Camera Lens Selection Card
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "2. Select Camera Lens Orientation",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Choose physical sensor facing (CameraCharacteristics.LENS_FACING).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CameraLensOption.entries.forEach { option ->
+                            FilterChip(
+                                selected = (selectedLensOption == option),
+                                onClick = {
+                                    if (!isServiceRunning && !isCameraActive) {
+                                        selectedLensOption = option
+                                    }
+                                },
+                                enabled = !isServiceRunning && !isCameraActive,
+                                label = { Text(option.displayName, fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Experiment Status Telemetry Card
             val statusColor = when {
                 isError -> MaterialTheme.colorScheme.errorContainer
@@ -409,6 +451,11 @@ fun HarnessScreen() {
                     }
                     Text(
                         text = "Scenario: ${currentScenario.id}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Camera Facing: ${selectedLensOption.displayName}",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -582,6 +629,7 @@ fun HarnessScreen() {
                                 val armIntent = Intent(context, CameraTestService::class.java).apply {
                                     action = CameraTestService.ACTION_ARM_AUTOMATED_TRIGGER
                                     putExtra(CameraTestService.EXTRA_TRIGGER_DELAY_MS, 5000L)
+                                    putExtra(CameraTestService.EXTRA_CAMERA_LENS_FACING, selectedLensOption.id)
                                 }
                                 ContextCompat.startForegroundService(context, armIntent)
                                 localStatusMessage = "Automated trigger armed (5s countdown). Press HOME now to test background activation!"
@@ -618,6 +666,7 @@ fun HarnessScreen() {
                         try {
                             val startIntent = Intent(context, CameraTestService::class.java).apply {
                                 action = CameraTestService.ACTION_START
+                                putExtra(CameraTestService.EXTRA_CAMERA_LENS_FACING, selectedLensOption.id)
                             }
                             ContextCompat.startForegroundService(context, startIntent)
                             localStatusMessage = "Starting camera acquisition..."

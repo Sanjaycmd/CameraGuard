@@ -30,6 +30,7 @@ object ExperimentLogger {
     private val lock = Any()
     private val recordsList = mutableListOf<ExperimentRecord>()
     private var storageFile: File? = null
+    private var appContext: Context? = null
 
     private val _records = MutableStateFlow<List<ExperimentRecord>>(emptyList())
     val records: StateFlow<List<ExperimentRecord>> = _records.asStateFlow()
@@ -51,6 +52,7 @@ object ExperimentLogger {
 
     fun init(context: Context) {
         synchronized(lock) {
+            appContext = context.applicationContext
             if (storageFile != null) return
             try {
                 val dir = File(context.filesDir, "experiments").apply { mkdirs() }
@@ -272,6 +274,12 @@ object ExperimentLogger {
                     else -> "rep=${_repetition.value};$notes"
                 }
 
+                val resolvedScreenState = if (screenState != "UNKNOWN" && screenState.isNotBlank()) {
+                    screenState
+                } else {
+                    ScreenStateResolver.resolveScreenState(appContext)
+                }
+
                 val record = ExperimentRecord(
                     sampleId = sId,
                     timestamp = nowIso,
@@ -286,7 +294,7 @@ object ExperimentLogger {
                     appVisibility = appVisibility,
                     foregroundServiceActive = foregroundServiceActive,
                     foregroundServiceType = foregroundServiceType,
-                    screenState = screenState,
+                    screenState = resolvedScreenState,
                     sessionState = sessionState,
                     sessionDurationMs = durationMs,
                     recentUserInteraction = recentUserInteraction,
