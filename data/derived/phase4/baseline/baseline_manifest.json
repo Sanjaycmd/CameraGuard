@@ -1,0 +1,27 @@
+{
+  "evaluation_version": "1.0.0",
+  "evaluator": "Phase2RuleAdapter (org.cameraguard.monitoring.detection.CameraRuleEvaluator)",
+  "timestamp": "2026-09-25T22:37:34.238Z",
+  "total_sessions": 16,
+  "included_sessions": 13,
+  "excluded_sessions": 3,
+  "camera_activation_sessions": 5,
+  "no_camera_control_sessions": 8,
+  "activation_coverage_rate": 0.0000,
+  "activation_indeterminate_rate": 1.0000,
+  "operational_alert_rate": 0.0000,
+  "scenario_breakdown": {
+    "NORMAL_FOREGROUND_CAMERA": { "total": 5, "camera_acquisitions": 2, "expected": 0, "unexpected": 0, "unknown": 2, "no_camera": 3 },
+    "BACKGROUND_CAMERA_CONTINUATION": { "total": 1, "camera_acquisitions": 1, "expected": 0, "unexpected": 0, "unknown": 1, "no_camera": 0 },
+    "CAMERA_START_STOP": { "total": 1, "camera_acquisitions": 1, "expected": 0, "unexpected": 0, "unknown": 1, "no_camera": 0 },
+    "PERMISSION_DENIED": { "total": 3, "camera_acquisitions": 0, "expected": 0, "unexpected": 0, "unknown": 0, "no_camera": 3 },
+    "PERMISSION_GRANTED_NO_CAMERA": { "total": 1, "camera_acquisitions": 0, "expected": 0, "unexpected": 0, "unknown": 0, "no_camera": 1 },
+    "CAMERA_SESSION_CLOSED": { "total": 1, "camera_acquisitions": 1, "expected": 0, "unexpected": 0, "unknown": 1, "no_camera": 0 },
+    "AMBIGUOUS_CONTEXT": { "total": 1, "camera_acquisitions": 0, "expected": 0, "unexpected": 0, "unknown": 0, "no_camera": 1 }
+  },
+  "exclusions": {
+    "exp_20260925_205422_4e75d0": "Violates scenario ground-truth invariants",
+    "exp_20260925_205424_0f3f21": "Violates scenario ground-truth invariants",
+    "exp_20260925_205605_1b68ae": "Pre-Phase-3.5.1 AMBIGUOUS_CONTEXT invalidly opened camera"
+  }
+}

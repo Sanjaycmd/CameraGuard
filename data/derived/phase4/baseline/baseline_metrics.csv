@@ -1,0 +1,13 @@
+metric_name,value,denominator,percentage_or_rate,description
+total_sessions,16,16,100.0%,"Total reconstructed sessions ingested"
+included_sessions,13,16,81.3%,"Sessions meeting ML & evaluation criteria"
+excluded_sessions,3,16,18.8%,"Sessions excluded due to legacy contradictions"
+camera_activation_sessions,5,13,38.5%,"Sessions with active physical camera acquisition"
+no_camera_control_sessions,8,13,61.5%,"Negative control sessions without camera acquisition"
+activation_decisive_count,0,5,0.0%,"Decisive classifications (EXPECTED/UNEXPECTED)"
+activation_unknown_count,5,5,100.0%,"Indeterminate telemetry resulting in UNKNOWN"
+overall_expected_count,0,13,0.0%,"Classified as EXPECTED"
+overall_unexpected_count,0,13,0.0%,"Classified as UNEXPECTED (Alerts)"
+overall_unknown_count,5,13,38.5%,"Classified as UNKNOWN"
+overall_no_camera_count,8,13,61.5%,"No camera hardware event callback received"
+operational_alert_rate,0,13,0.0%,"Percentage of sessions triggering an active user alert"
