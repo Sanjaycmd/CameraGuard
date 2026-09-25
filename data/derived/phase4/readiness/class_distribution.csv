@@ -1,0 +1,10 @@
+target_formulation,class_name,total_count,included_count,excluded_count,included_pct,support_status,recommendation
+MULTICLASS,AMBIGUOUS_CONTEXT,2,1,1,7.69,INSUFFICIENT,"INSUFFICIENT (N=1): Cannot be used in standalone multiclass evaluation; fold validation undefined."
+MULTICLASS,NO_CAMERA_ACTIVITY,1,1,0,7.69,INSUFFICIENT,"INSUFFICIENT (N=1): Cannot be used in standalone multiclass evaluation; fold validation undefined."
+MULTICLASS,PERMISSION_DENIED,5,3,2,23.08,MARGINAL,"MARGINAL (N=3): Minimal representation for evaluation; high variance expected."
+MULTICLASS,USER_INITIATED_BACKGROUND_CONTINUATION,2,2,0,15.38,INSUFFICIENT,"INSUFFICIENT (N=2): Insufficient statistical representation; collapse into binary target or expand physical sessions."
+MULTICLASS,USER_INITIATED_FOREGROUND,6,6,0,46.15,ADEQUATE,"ADEQUATE (N=6): Sufficient representation for primary training/evaluation."
+BINARY_HARDWARE_ACQUISITION,CAMERA_ACQUISITION,6,5,1,38.46,MARGINAL,"MARGINAL (N=5): Usable for binary activation gating models; expansion required."
+BINARY_HARDWARE_ACQUISITION,NO_CAMERA_CONTROL,10,8,2,61.54,ADEQUATE,"ADEQUATE (N=8): Usable as negative control baseline."
+BINARY_OPERATIONAL_ALERT,UNEXPECTED_ALERT,0,0,0,0.00,INSUFFICIENT,"INSUFFICIENT (N=0): Current dataset contains 0 covert/malicious executions. Cannot train or evaluate alert classifiers."
+BINARY_OPERATIONAL_ALERT,NON_ALERT_AUTHORIZED,16,13,3,100.00,ADEQUATE,"ADEQUATE (N=13): All current sessions represent legitimate or negative control activities."

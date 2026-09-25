@@ -1,0 +1,38 @@
+{
+  "audit_version": "1.0.0",
+  "audit_timestamp_iso": "2026-09-25T22:49:54.163Z",
+  "dataset_version": "1.0.0",
+  "overall_readiness_status": "CONDITIONALLY_READY",
+  "summary": {
+    "total_sessions": 16,
+    "included_sessions": 13,
+    "excluded_sessions": 3,
+    "camera_acquisition_sessions": 5,
+    "no_camera_control_sessions": 8
+  },
+  "candidate_feature_sets": {
+    "PRODUCTION_T0": ["F01", "F02", "F03", "F05", "F06", "F07", "F08", "F09", "F10", "F11"],
+    "PRODUCTION_T0_WITH_UNVERIFIED_PERMISSION": ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11"],
+    "ORACLE_RESEARCH": ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11"],
+    "RETROSPECTIVE": ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20"]
+  },
+  "cross_validation_feasibility": {
+    "is_5_fold_cv_feasible": false,
+    "is_10_fold_cv_feasible": false,
+    "max_defensible_folds_binary": 3,
+    "max_defensible_folds_multiclass": 1,
+    "requires_session_grouping": true,
+    "infeasibility_reason": "Standard 5-fold and 10-fold CV are mathematically impossible. Classes AMBIGUOUS_CONTEXT (N=1) and NO_CAMERA_ACTIVITY (N=1) cannot be partitioned across multiple folds without zero representation. Session grouping is mandatory: individual events from the same session must never be split across train and validation folds.",
+    "recommended_validation_strategy": "Use Leave-One-Group-Out (LOGO) cross-validation on coarse binary acquisition targets, or collapsed 2-fold grouped cross-validation. For multiclass evaluation, collapse rare classes or report full-sample baseline metrics."
+  },
+  "constant_features": ["F01", "F02", "F03", "F05", "F15"],
+  "near_constant_features": ["F19"],
+  "physical_data_expansion_requirements": [
+    "Front Camera Sessions: Collect minimum 10 sessions using front camera sensor (cameraId='1', isBackCamera=FALSE).",
+    "Third-Party Applications: Collect sessions using real third-party communication apps (e.g. Meet, WhatsApp) to unfreeze F05.",
+    "Screen Locked Camera Access: Collect minimum 10 sessions initiated while screen is ON_LOCKED to validate Rule 2 / lockscreen ML behavior.",
+    "Screen Off Covert Access: Collect minimum 10 sessions simulating covert background access with SCREEN_OFF to validate Rule 1 / alert trigger.",
+    "Automated Background Triggers: Collect sessions activated via alarm/job triggers without user interaction to validate confidence=LOW telemetry.",
+    "Expanded Repetitions: Increase session count to 10-20 repetitions per scenario to enable statistically defensible 5-fold cross-validation."
+  ]
+}
