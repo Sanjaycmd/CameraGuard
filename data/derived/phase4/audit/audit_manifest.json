@@ -1,0 +1,60 @@
+{
+  "audit_version": "4.6.3",
+  "audit_timestamp_iso": "2026-09-26T00:45:06.347Z",
+  "overall_readiness_status": "READY_FOR_MULTI_MODEL_EXPERIMENTATION",
+  "inventory": {
+    "total_raw_files": 15,
+    "total_raw_records": 1193,
+    "unique_event_records": 652,
+    "duplicate_event_records": 541,
+    "total_sessions": 92,
+    "multi_file_sessions": 41,
+    "single_file_sessions": 51,
+    "baseline_files_count": 4,
+    "expansion_files_count": 11
+  },
+  "targeted_cohort_summary": {
+    "total_targeted_sessions": 41,
+    "included_sessions": 41,
+    "excluded_sessions": 0,
+    "camera_acquisition_sessions": 28,
+    "no_camera_control_sessions": 13,
+    "lens_facing_distribution": {
+      "rear_camera_back": 23,
+      "front_camera_selfie": 5,
+      "no_hardware_access": 13
+    },
+    "screen_state_summary": {
+      "screen_on_unlocked_at_t0": 41,
+      "screen_transitions_containing_off": 3
+    },
+    "automated_background_trigger_sessions": 5,
+    "screen_off_continuation_sessions": 3
+  },
+  "feature_variability_summary": {
+    "total_features_audited": 20,
+    "unfrozen_features": ["F01", "F02", "F03", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14", "F16", "F17", "F18", "F19", "F20"],
+    "constant_features_targeted": ["F01", "F02", "F03", "F04", "F05", "F15"],
+    "f04_production_sandbox_status": "CLAMPED_TO_UNVERIFIED_IN_PRODUCTION"
+  },
+  "task_readiness_summary": {
+    "task_1_deterministic_baseline": "READY",
+    "task_2_binary_hardware_acquisition": "READY",
+    "task_3_three_tier_context": "READY",
+    "task_4_multiclass_scenario": "CONDITIONALLY_READY",
+    "task_5_anomaly_detection": "READY",
+    "task_6_hybrid_rule_ml_ensemble": "READY"
+  },
+  "cross_validation_feasibility": {
+    "is_5_fold_grouped_cv_feasible": true,
+    "is_10_fold_grouped_cv_feasible": false,
+    "max_defensible_folds_multiclass": 3,
+    "max_defensible_folds_binary": 5,
+    "requires_session_grouping": true,
+    "recommended_strategy": "Stratified 5-Fold Grouped Cross-Validation by Session ID for Binary and 3-Tier tasks; Stratified 3-Fold Grouped CV or LOGO for 7-class Multiclass."
+  },
+  "research_ground_truth_compliance": {
+    "covert_malware_samples_count": 0,
+    "compliance_note": "Zero unauthorized or malicious samples present. Automated background triggers represent authorized, controlled foreground-timer executions with low package confidence."
+  }
+}

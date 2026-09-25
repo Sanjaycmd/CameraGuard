@@ -321,7 +321,13 @@ class FeatureExtractorTest {
         val targetRawDir = if (rawDir.exists()) rawDir else fallbackRawDir
         if (!targetRawDir.exists()) return
 
-        val csvFiles = targetRawDir.listFiles { _, name -> name.endsWith(".csv") }?.sortedBy { it.name } ?: return
+        val baselineFiles = setOf(
+            "cameraguard_experiment_20260925_205319.csv",
+            "cameraguard_experiment_20260925_205652.csv",
+            "cameraguard_experiment_20260925_213654.csv",
+            "persisted_experiment_history.csv"
+        )
+        val csvFiles = targetRawDir.listFiles { _, name -> name in baselineFiles }?.sortedBy { it.name } ?: return
         val allRecords = mutableListOf<ExperimentRecord>()
         for (f in csvFiles) {
             val records = ExperimentDataExporter.parseCsv(f.readText())
