@@ -20,6 +20,7 @@ import org.cameraguard.data.model.InferenceMethod
 import org.cameraguard.data.model.RawCameraEventType
 import org.cameraguard.data.model.ScreenInteractivityState
 import org.cameraguard.monitoring.detection.CameraRuleEvaluator
+import org.cameraguard.monitoring.detection.hybrid.HybridCameraEvaluator
 import org.cameraguard.monitoring.telemetry.ContextualInferenceEngine
 import org.cameraguard.monitoring.telemetry.InferredPackageContext
 import org.cameraguard.monitoring.telemetry.ScreenStateTracker
@@ -30,6 +31,7 @@ class CameraAvailabilityTracker(
     private val screenTracker: ScreenStateTracker? = context?.let { ScreenStateTracker(it) },
     val inferenceEngine: ContextualInferenceEngine? = context?.let { ContextualInferenceEngine(it) },
     val ruleEvaluator: CameraRuleEvaluator = CameraRuleEvaluator(),
+    val hybridEvaluator: HybridCameraEvaluator = HybridCameraEvaluator(ruleEvaluator),
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 ) {
 
@@ -266,7 +268,7 @@ class CameraAvailabilityTracker(
         lastFallbackEventTimestamp = currentTime
         lastFallbackPackage = candidate.packageName
 
-        // 4. Create unified CameraAccessEvent through existing rule evaluator
+        // 4. Create unified CameraAccessEvent through hybrid evaluator
         val screenState = screenTracker?.currentScreenState()
             ?: ScreenInteractivityState.SCREEN_ON_UNLOCKED
 
@@ -278,10 +280,16 @@ class CameraAvailabilityTracker(
             deltaFromEventMs = 0L
         )
 
-        val classificationResult = ruleEvaluator.evaluate(
+        val isKnownCamera = candidate.packageName.let {
+            inferenceEngine.isCameraApplication(it)
+        }
+
+        val hybridResult = hybridEvaluator.evaluate(
             rawEventType = RawCameraEventType.CAMERA_BECAME_UNAVAILABLE,
             screenState = screenState,
-            inferredContext = inferredContext
+            inferredContext = inferredContext,
+            cameraId = null,
+            isKnownCameraApp = isKnownCamera
         )
 
         val detectionLatency = (currentTime - candidate.timestamp).coerceAtLeast(0L)
@@ -295,13 +303,17 @@ class CameraAvailabilityTracker(
             packageInferenceConfidence = InferenceConfidence.HIGH,
             inferenceMethod = InferenceMethod.USAGE_STATS_FALLBACK,
             candidateHasCameraPermission = candidate.hasCameraPermission,
-            classification = classificationResult.classification,
-            classificationExplanation = classificationResult.explanation,
+            classification = hybridResult.finalClassification,
+            classificationExplanation = hybridResult.explanation,
             detectionLatencyMs = detectionLatency,
-            isSynthetic = false
+            isSynthetic = false,
+            tierUsed = hybridResult.tierUsed,
+            deterministicResult = hybridResult.deterministicResult,
+            mlResult = hybridResult.mlResult,
+            mlInvoked = hybridResult.mlInvoked
         )
 
-        logD("UsageStats fallback created unified CameraAccessEvent: package=${candidate.packageName}, class=${classificationResult.classification}")
+        logD("UsageStats fallback created unified CameraAccessEvent: package=${candidate.packageName}, class=${hybridResult.finalClassification}")
         cameraMonitor?.recordEvent(event)
         onEventDetected?.invoke(event)
         return true
@@ -362,11 +374,16 @@ class CameraAvailabilityTracker(
             inferred
         }
 
-        // 3. Classification
-        val classificationResult = ruleEvaluator.evaluate(
+        // 3. Classification via Hybrid Evaluator
+        val isKnownCamera = inferredContext.packageName != null &&
+                (inferenceEngine?.isCameraApplication(inferredContext.packageName) == true)
+
+        val hybridResult = hybridEvaluator.evaluate(
             rawEventType = rawType,
             screenState = screenState,
-            inferredContext = inferredContext
+            inferredContext = inferredContext,
+            cameraId = cameraId,
+            isKnownCameraApp = isKnownCamera
         )
 
         val detectionLatency = (System.currentTimeMillis() - startCaptureTime).coerceAtLeast(0L)
@@ -380,10 +397,14 @@ class CameraAvailabilityTracker(
             packageInferenceConfidence = inferredContext.confidence,
             inferenceMethod = inferredContext.method,
             candidateHasCameraPermission = inferredContext.hasCameraPermission,
-            classification = classificationResult.classification,
-            classificationExplanation = classificationResult.explanation,
+            classification = hybridResult.finalClassification,
+            classificationExplanation = hybridResult.explanation,
             detectionLatencyMs = detectionLatency,
-            isSynthetic = false
+            isSynthetic = false,
+            tierUsed = hybridResult.tierUsed,
+            deterministicResult = hybridResult.deterministicResult,
+            mlResult = hybridResult.mlResult,
+            mlInvoked = hybridResult.mlInvoked
         )
 
         cameraMonitor?.recordEvent(event)

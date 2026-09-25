@@ -17,7 +17,8 @@ data class InferredPackageContext(
     val confidence: InferenceConfidence,
     val method: InferenceMethod,
     val hasCameraPermission: Boolean?,
-    val deltaFromEventMs: Long?
+    val deltaFromEventMs: Long?,
+    val recentActivityCount30s: Int = 0
 )
 
 data class UsageStatsCameraCandidate(
@@ -182,14 +183,18 @@ class ContextualInferenceEngine(
 
         var latestPackage: String? = null
         var latestEventTimestamp: Long = -1L
+        var activityCount = 0
 
         if (customEventProvider != null) {
             val events = customEventProvider.queryEvents(startTime, endTime)
             for (rec in events) {
                 if (rec.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    if (rec.timestamp in startTime..eventTimestamp && rec.timestamp >= latestEventTimestamp) {
-                        latestEventTimestamp = rec.timestamp
-                        latestPackage = rec.packageName
+                    if (rec.timestamp in startTime..eventTimestamp) {
+                        activityCount++
+                        if (rec.timestamp >= latestEventTimestamp) {
+                            latestEventTimestamp = rec.timestamp
+                            latestPackage = rec.packageName
+                        }
                     }
                 }
             }
@@ -199,7 +204,8 @@ class ContextualInferenceEngine(
                 confidence = InferenceConfidence.NONE,
                 method = InferenceMethod.NONE,
                 hasCameraPermission = null,
-                deltaFromEventMs = null
+                deltaFromEventMs = null,
+                recentActivityCount30s = 0
             )
 
             val usageEvents = try {
@@ -211,7 +217,8 @@ class ContextualInferenceEngine(
                 confidence = InferenceConfidence.NONE,
                 method = InferenceMethod.NONE,
                 hasCameraPermission = null,
-                deltaFromEventMs = null
+                deltaFromEventMs = null,
+                recentActivityCount30s = 0
             )
 
             val event = UsageEvents.Event()
@@ -219,9 +226,12 @@ class ContextualInferenceEngine(
                 usageEvents.getNextEvent(event)
                 // Look for user-facing activity resumption/transitions at or before camera access
                 if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    if (event.timeStamp in startTime..eventTimestamp && event.timeStamp >= latestEventTimestamp) {
-                        latestEventTimestamp = event.timeStamp
-                        latestPackage = event.packageName
+                    if (event.timeStamp in startTime..eventTimestamp) {
+                        activityCount++
+                        if (event.timeStamp >= latestEventTimestamp) {
+                            latestEventTimestamp = event.timeStamp
+                            latestPackage = event.packageName
+                        }
                     }
                 }
             }
@@ -233,7 +243,8 @@ class ContextualInferenceEngine(
                 confidence = InferenceConfidence.NONE,
                 method = InferenceMethod.NONE,
                 hasCameraPermission = null,
-                deltaFromEventMs = null
+                deltaFromEventMs = null,
+                recentActivityCount30s = activityCount
             )
         }
 
@@ -252,7 +263,8 @@ class ContextualInferenceEngine(
             confidence = confidence,
             method = InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED,
             hasCameraPermission = hasPermission,
-            deltaFromEventMs = minDelta
+            deltaFromEventMs = minDelta,
+            recentActivityCount30s = activityCount
         )
     }
 

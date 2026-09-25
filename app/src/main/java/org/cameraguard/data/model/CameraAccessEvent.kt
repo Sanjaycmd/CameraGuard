@@ -24,7 +24,11 @@ data class CameraAccessEvent(
     val classification: AccessClassification = AccessClassification.UNKNOWN,
     val classificationExplanation: String = "",
     val detectionLatencyMs: Long? = null,
-    val isSynthetic: Boolean = false
+    val isSynthetic: Boolean = false,
+    val tierUsed: String? = null,
+    val deterministicResult: String? = null,
+    val mlResult: String? = null,
+    val mlInvoked: Boolean = false
 ) {
     /**
      * Backward-compatibility constructor for Phase 1 code.

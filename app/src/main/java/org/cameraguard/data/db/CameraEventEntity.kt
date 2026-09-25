@@ -24,7 +24,11 @@ data class CameraEventEntity(
     val classification: String,
     val classificationExplanation: String,
     val detectionLatencyMs: Long?,
-    val isSynthetic: Boolean
+    val isSynthetic: Boolean,
+    val tierUsed: String? = null,
+    val deterministicResult: String? = null,
+    val mlResult: String? = null,
+    val mlInvoked: Boolean = false
 ) {
     fun toDomain(): CameraAccessEvent {
         return CameraAccessEvent(
@@ -45,7 +49,11 @@ data class CameraEventEntity(
                 .getOrDefault(AccessClassification.UNKNOWN),
             classificationExplanation = classificationExplanation,
             detectionLatencyMs = detectionLatencyMs,
-            isSynthetic = isSynthetic
+            isSynthetic = isSynthetic,
+            tierUsed = tierUsed,
+            deterministicResult = deterministicResult,
+            mlResult = mlResult,
+            mlInvoked = mlInvoked
         )
     }
 
@@ -64,7 +72,11 @@ data class CameraEventEntity(
                 classification = event.classification.name,
                 classificationExplanation = event.classificationExplanation,
                 detectionLatencyMs = event.detectionLatencyMs,
-                isSynthetic = event.isSynthetic
+                isSynthetic = event.isSynthetic,
+                tierUsed = event.tierUsed,
+                deterministicResult = event.deterministicResult,
+                mlResult = event.mlResult,
+                mlInvoked = event.mlInvoked
             )
         }
     }
