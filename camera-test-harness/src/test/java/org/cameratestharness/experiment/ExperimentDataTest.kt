@@ -24,7 +24,8 @@ class ExperimentDataTest {
             "PERMISSION_DENIED",
             "PERMISSION_GRANTED_NO_CAMERA",
             "CAMERA_SESSION_CLOSED",
-            "AMBIGUOUS_CONTEXT"
+            "AMBIGUOUS_CONTEXT",
+            "AUTOMATED_BACKGROUND_TRIGGER"
         )
         val actualIds = ExperimentScenario.entries.map { it.id }
         assertEquals(expectedIds, actualIds)
@@ -460,5 +461,232 @@ class ExperimentDataTest {
         val invalidResult = ExperimentDataValidator.validateRecords(listOf(invalidRecord))
         assertFalse("Invalid record must fail validation", invalidResult.isValid)
         assertTrue("Should report at least 4 errors", invalidResult.errors.size >= 4)
+    }
+
+    @Test
+    fun `test 16 - automated background trigger produces AUTOMATED_BACKGROUND_TRIGGER ground truth and CAMERA_SESSION_CLOSED when stopped`() {
+        val scenario = ExperimentScenario.AUTOMATED_BACKGROUND_TRIGGER
+        assertEquals("AUTOMATED_BACKGROUND_TRIGGER", scenario.id)
+        assertTrue(scenario.isCameraActivation)
+
+        val session = ExperimentLogger.startNewSession(scenario, rep = 1)
+        assertTrue(session.contains("_rep1_"))
+
+        // Armed countdown
+        ExperimentLogger.recordEvent(
+            userAction = "ARM_AUTOMATED_TRIGGER",
+            cameraEvent = "NONE",
+            activityState = "RESUMED",
+            appVisibility = "FOREGROUND",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            sessionState = "ARMED"
+        )
+
+        // Fired automatically in background
+        ExperimentLogger.recordEvent(
+            userAction = "AUTOMATED_TRIGGER_FIRED",
+            cameraEvent = "CAMERA_OPENED",
+            cameraId = "0",
+            cameraPermission = "GRANTED",
+            activityState = "STOPPED",
+            appVisibility = "BACKGROUND",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            sessionState = "CAMERA_OPEN",
+            cameraAvailability = "UNAVAILABLE",
+            recentUserInteraction = false,
+            notes = "trigger=countdown_timer;delay_sec=5;Automated background trigger"
+        )
+
+        ExperimentLogger.recordEvent(
+            userAction = "NONE",
+            cameraEvent = "CAPTURE_SESSION_STARTED",
+            cameraId = "0",
+            cameraPermission = "GRANTED",
+            activityState = "STOPPED",
+            appVisibility = "BACKGROUND",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            sessionState = "RUNNING",
+            cameraAvailability = "UNAVAILABLE",
+            recentUserInteraction = false
+        )
+
+        val activeRecords = ExperimentLogger.getRecords()
+        assertEquals(3, activeRecords.size)
+        assertEquals("AUTOMATED_BACKGROUND_TRIGGER", activeRecords[0].groundTruthContext)
+        assertEquals("AUTOMATED_BACKGROUND_TRIGGER", activeRecords[1].groundTruthContext)
+        assertEquals("AUTOMATED_BACKGROUND_TRIGGER", activeRecords[2].groundTruthContext)
+        assertFalse("recentUserInteraction must be false for automated background trigger", activeRecords[1].recentUserInteraction)
+
+        // Stop session
+        ExperimentLogger.recordEvent(userAction = "USER_PRESSED_STOP")
+        ExperimentLogger.recordEvent(userAction = "CAMERA_STOP_REQUESTED", cameraEvent = "CAMERA_STOP_REQUESTED", cameraId = "0")
+        ExperimentLogger.recordEvent(cameraEvent = "CAMERA_CLOSED", cameraId = "0")
+        ExperimentLogger.stopSession()
+
+        val allRecords = ExperimentLogger.getRecords()
+        val closedRecord = allRecords.last()
+        assertEquals("CAMERA_SESSION_CLOSED", closedRecord.groundTruthContext)
+    }
+
+    @Test
+    fun `test 17 - repetition count is tracked in session ID and notes across multiple runs`() {
+        ExperimentLogger.setRepetition(1)
+        val session1 = ExperimentLogger.startNewSession(ExperimentScenario.NORMAL_FOREGROUND_CAMERA)
+        assertTrue("Session 1 must contain rep1", session1.contains("_rep1_"))
+        ExperimentLogger.recordEvent(userAction = "USER_PRESSED_START", notes = "First run")
+        ExperimentLogger.stopSession()
+
+        ExperimentLogger.incrementRepetition()
+        val session2 = ExperimentLogger.startNewSession(ExperimentScenario.NORMAL_FOREGROUND_CAMERA)
+        assertTrue("Session 2 must contain rep2", session2.contains("_rep2_"))
+        ExperimentLogger.recordEvent(userAction = "USER_PRESSED_START", notes = "Second run")
+        ExperimentLogger.stopSession()
+
+        val records = ExperimentLogger.getRecords()
+        assertEquals(2, records.size)
+        assertEquals(session1, records[0].sampleId)
+        assertEquals(session2, records[1].sampleId)
+        assertTrue(records[0].notes.contains("rep=1"))
+        assertTrue(records[1].notes.contains("rep=2"))
+    }
+
+    @Test
+    fun `test 18 - ground truth consistency invariants - PERMISSION_DENIED with GRANTED permission is rejected by validator`() {
+        val badRecord = ExperimentRecord(
+            sampleId = "exp_invalid_perm",
+            timestamp = "2026-09-25T12:00:00.000Z",
+            scenarioId = "PERMISSION_DENIED",
+            groundTruthContext = "PERMISSION_DENIED",
+            userAction = "USER_EVALUATED_PERMISSION_DENIED",
+            cameraEvent = "NONE",
+            cameraId = "NONE",
+            cameraPermission = "GRANTED",
+            activityState = "RESUMED",
+            appVisibility = "FOREGROUND",
+            foregroundServiceActive = false,
+            foregroundServiceType = "none",
+            screenState = "ON",
+            sessionState = "IDLE",
+            sessionDurationMs = "0",
+            recentUserInteraction = true,
+            lifecycleEvent = "NONE",
+            cameraAvailability = "AVAILABLE"
+        )
+
+        val result = ExperimentDataValidator.validateRecords(listOf(badRecord))
+        assertFalse("Validator must reject PERMISSION_DENIED ground truth with GRANTED cameraPermission", result.isValid)
+        assertTrue(result.errors.any { it.contains("PERMISSION_DENIED ground truth cannot have camera_permission == 'GRANTED'") })
+    }
+
+    @Test
+    fun `test 19 - ground truth consistency invariants - AMBIGUOUS_CONTEXT with active camera is rejected by validator`() {
+        val badRecord = ExperimentRecord(
+            sampleId = "exp_invalid_ambiguous",
+            timestamp = "2026-09-25T12:00:00.000Z",
+            scenarioId = "AMBIGUOUS_CONTEXT",
+            groundTruthContext = "AMBIGUOUS_CONTEXT",
+            userAction = "NONE",
+            cameraEvent = "CAMERA_OPENED",
+            cameraId = "0",
+            cameraPermission = "GRANTED",
+            activityState = "RESUMED",
+            appVisibility = "FOREGROUND",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            screenState = "ON",
+            sessionState = "CAMERA_OPEN",
+            sessionDurationMs = "1000",
+            recentUserInteraction = false,
+            lifecycleEvent = "NONE",
+            cameraAvailability = "UNAVAILABLE"
+        )
+
+        val result = ExperimentDataValidator.validateRecords(listOf(badRecord))
+        assertFalse("Validator must reject AMBIGUOUS_CONTEXT ground truth with active camera session", result.isValid)
+        assertTrue(result.errors.any { it.contains("AMBIGUOUS_CONTEXT ground truth cannot have active camera events") })
+    }
+
+    @Test
+    fun `test 20 - ground truth consistency invariants - AUTOMATED_BACKGROUND_TRIGGER with USER_PRESSED_START is rejected by validator`() {
+        val badRecord = ExperimentRecord(
+            sampleId = "exp_invalid_auto",
+            timestamp = "2026-09-25T12:00:00.000Z",
+            scenarioId = "AUTOMATED_BACKGROUND_TRIGGER",
+            groundTruthContext = "AUTOMATED_BACKGROUND_TRIGGER",
+            userAction = "USER_PRESSED_START",
+            cameraEvent = "CAMERA_OPENED",
+            cameraId = "0",
+            cameraPermission = "GRANTED",
+            activityState = "STOPPED",
+            appVisibility = "BACKGROUND",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            screenState = "ON",
+            sessionState = "CAMERA_OPEN",
+            sessionDurationMs = "5000",
+            recentUserInteraction = false,
+            lifecycleEvent = "NONE",
+            cameraAvailability = "UNAVAILABLE"
+        )
+
+        val result = ExperimentDataValidator.validateRecords(listOf(badRecord))
+        assertFalse("Validator must reject AUTOMATED_BACKGROUND_TRIGGER with USER_PRESSED_START", result.isValid)
+        assertTrue(result.errors.any { it.contains("AUTOMATED_BACKGROUND_TRIGGER ground truth cannot have explicit user start action") })
+    }
+
+    @Test
+    fun `test 21 - dataset validator accepts valid expanded 8-scenario dataset`() {
+        val validRecords = listOf(
+            ExperimentRecord(
+                sampleId = "exp_auto_001",
+                timestamp = "2026-09-25T12:00:00.000Z",
+                scenarioId = "AUTOMATED_BACKGROUND_TRIGGER",
+                groundTruthContext = "AUTOMATED_BACKGROUND_TRIGGER",
+                userAction = "AUTOMATED_TRIGGER_FIRED",
+                cameraEvent = "CAMERA_OPENED",
+                cameraId = "0",
+                cameraPermission = "GRANTED",
+                activityState = "STOPPED",
+                appVisibility = "BACKGROUND",
+                foregroundServiceActive = true,
+                foregroundServiceType = "camera",
+                screenState = "ON",
+                sessionState = "RUNNING",
+                sessionDurationMs = "5200",
+                recentUserInteraction = false,
+                lifecycleEvent = "NONE",
+                cameraAvailability = "UNAVAILABLE",
+                notes = "rep=1;trigger=countdown_timer;delay_sec=5"
+            ),
+            ExperimentRecord(
+                sampleId = "exp_nocam_002",
+                timestamp = "2026-09-25T12:05:00.000Z",
+                scenarioId = "PERMISSION_GRANTED_NO_CAMERA",
+                groundTruthContext = "NO_CAMERA_ACTIVITY",
+                userAction = "USER_EVALUATED_NO_CAMERA",
+                cameraEvent = "NONE",
+                cameraId = "NONE",
+                cameraPermission = "GRANTED",
+                activityState = "RESUMED",
+                appVisibility = "FOREGROUND",
+                foregroundServiceActive = false,
+                foregroundServiceType = "none",
+                screenState = "ON",
+                sessionState = "IDLE",
+                sessionDurationMs = "0",
+                recentUserInteraction = true,
+                lifecycleEvent = "NONE",
+                cameraAvailability = "AVAILABLE",
+                notes = "rep=1;trigger=observation"
+            )
+        )
+
+        val csv = ExperimentDataExporter.exportToCsvString(validRecords)
+        val validation = ExperimentDataValidator.validateCsv(csv)
+        assertTrue("Dataset validation must pass for valid records in expanded scenarios", validation.isValid)
+        assertTrue(validation.errors.isEmpty())
     }
 }

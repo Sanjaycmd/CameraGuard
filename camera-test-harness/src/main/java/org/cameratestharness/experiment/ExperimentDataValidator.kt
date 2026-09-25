@@ -58,6 +58,34 @@ object ExperimentDataValidator {
                     errors.add("Row $rowNum: invalid session_duration_ms '${record.sessionDurationMs}'")
                 }
             }
+
+            // 7. Ground Truth Consistency Invariants
+            if (record.groundTruthContext == GroundTruthContext.PERMISSION_DENIED.label) {
+                if (record.cameraPermission == "GRANTED") {
+                    errors.add("Row $rowNum: PERMISSION_DENIED ground truth cannot have camera_permission == 'GRANTED'")
+                }
+                if (record.cameraEvent in listOf("CAMERA_OPENED", "CAPTURE_SESSION_STARTED")) {
+                    errors.add("Row $rowNum: PERMISSION_DENIED ground truth cannot have active camera event '${record.cameraEvent}'")
+                }
+            }
+
+            if (record.groundTruthContext == GroundTruthContext.AMBIGUOUS_CONTEXT.label) {
+                if (record.cameraEvent in listOf("CAMERA_OPENED", "CAPTURE_SESSION_STARTED") || record.foregroundServiceActive) {
+                    errors.add("Row $rowNum: AMBIGUOUS_CONTEXT ground truth cannot have active camera events or active foreground service")
+                }
+            }
+
+            if (record.groundTruthContext == GroundTruthContext.NO_CAMERA_ACTIVITY.label) {
+                if (record.cameraEvent in listOf("CAMERA_OPENED", "CAPTURE_SESSION_STARTED") || record.foregroundServiceActive) {
+                    errors.add("Row $rowNum: NO_CAMERA_ACTIVITY ground truth cannot have active camera events or active foreground service")
+                }
+            }
+
+            if (record.groundTruthContext == GroundTruthContext.AUTOMATED_BACKGROUND_TRIGGER.label) {
+                if (record.userAction == "USER_PRESSED_START") {
+                    errors.add("Row $rowNum: AUTOMATED_BACKGROUND_TRIGGER ground truth cannot have explicit user start action '${record.userAction}'")
+                }
+            }
         }
 
         return ValidationResult(

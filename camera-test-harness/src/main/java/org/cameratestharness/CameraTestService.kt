@@ -44,6 +44,9 @@ class CameraTestService : Service() {
 
         const val ACTION_START = "org.cameratestharness.action.START"
         const val ACTION_STOP = "org.cameratestharness.action.STOP"
+        const val ACTION_ARM_AUTOMATED_TRIGGER = "org.cameratestharness.action.ARM_AUTOMATED_TRIGGER"
+        const val EXTRA_TRIGGER_DELAY_MS = "org.cameratestharness.extra.TRIGGER_DELAY_MS"
+        const val DEFAULT_TRIGGER_DELAY_MS = 5000L
 
         private val _isRunning = MutableStateFlow(false)
         val isRunning: StateFlow<Boolean> = _isRunning.asStateFlow()
@@ -58,6 +61,9 @@ class CameraTestService : Service() {
     private val cameraLock = Any()
     private var isSimulationRequested = false
     private var isSessionActive = false
+    private var isAutomatedTriggerArmed = false
+    private var isAutomatedSession = false
+    private var pendingTriggerRunnable: Runnable? = null
     private var isStopping = false
 
     private var cameraThread: HandlerThread? = null
@@ -88,6 +94,12 @@ class CameraTestService : Service() {
                 startSimulation()
                 return START_STICKY
             }
+            ACTION_ARM_AUTOMATED_TRIGGER -> {
+                Log.i(TAG, "[CameraTestHarness] Automated trigger arm requested")
+                val delayMs = intent?.getLongExtra(EXTRA_TRIGGER_DELAY_MS, DEFAULT_TRIGGER_DELAY_MS) ?: DEFAULT_TRIGGER_DELAY_MS
+                armAutomatedTrigger(delayMs)
+                return START_STICKY
+            }
             else -> {
                 Log.w(TAG, "[CameraTestHarness] Unknown action received: $action")
                 return START_NOT_STICKY
@@ -108,12 +120,14 @@ class CameraTestService : Service() {
 
         _harnessState.value = HarnessState.STARTING
         _serviceStatus.value = "Starting foreground service..."
+        val rep = ExperimentLogger.repetition.value
         ExperimentLogger.recordEvent(
             userAction = "CAMERA_OPEN_REQUESTED",
             cameraEvent = "CAMERA_OPEN_REQUESTED",
             foregroundServiceActive = true,
             foregroundServiceType = "camera",
-            sessionState = "STARTING"
+            sessionState = "STARTING",
+            notes = "rep=$rep;trigger=user_start"
         )
 
         // 1. Establish foreground service notification
@@ -138,8 +152,94 @@ class CameraTestService : Service() {
             return
         }
 
-        // 2. Check CAMERA permission
-        Log.i(TAG, "[CameraTestHarness] Camera permission check")
+        acquireAndOpenHardware(isAutomated = false)
+    }
+
+    private fun armAutomatedTrigger(delayMs: Long = DEFAULT_TRIGGER_DELAY_MS) {
+        synchronized(cameraLock) {
+            if (isSimulationRequested || isSessionActive) {
+                Log.w(TAG, "[CameraTestHarness] Simulation already active")
+                return
+            }
+            isSimulationRequested = true
+            isAutomatedTriggerArmed = true
+            isStopping = false
+        }
+
+        _harnessState.value = HarnessState.ARMED
+        val delaySec = delayMs / 1000
+        val rep = ExperimentLogger.repetition.value
+        _serviceStatus.value = "Automated trigger armed: acquiring camera in ${delaySec}s..."
+
+        ExperimentLogger.recordEvent(
+            userAction = "ARM_AUTOMATED_TRIGGER",
+            cameraEvent = "NONE",
+            foregroundServiceActive = true,
+            foregroundServiceType = "camera",
+            sessionState = "ARMED",
+            notes = "rep=$rep;trigger=countdown_timer;delay_sec=$delaySec;Armed countdown"
+        )
+
+        // Establish foreground service notification immediately while app is visible
+        try {
+            val notification = buildNotification("Automated trigger armed (${delaySec}s countdown)... Switch to Home/Background")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            _isRunning.value = true
+        } catch (e: Exception) {
+            Log.e(TAG, "[CameraTestHarness] Failed to enter foreground service", e)
+            _harnessState.value = HarnessState.ERROR
+            _serviceStatus.value = "Failed to start foreground service: ${e.message}"
+            stopSelf()
+            return
+        }
+
+        startCameraThread()
+
+        val runnable = Runnable {
+            synchronized(cameraLock) {
+                if (!isSimulationRequested || isStopping) {
+                    Log.i(TAG, "[CameraTestHarness] Automated trigger aborted before execution")
+                    return@Runnable
+                }
+                isSessionActive = true
+                isAutomatedTriggerArmed = false
+            }
+
+            Log.i(TAG, "[CameraTestHarness] Automated trigger fired! Initiating camera acquisition")
+            _harnessState.value = HarnessState.STARTING
+            _serviceStatus.value = "Automated trigger fired. Acquiring camera hardware..."
+
+            ExperimentLogger.recordEvent(
+                userAction = "AUTOMATED_TRIGGER_FIRED",
+                cameraEvent = "CAMERA_OPEN_REQUESTED",
+                foregroundServiceActive = true,
+                foregroundServiceType = "camera",
+                sessionState = "STARTING",
+                recentUserInteraction = false,
+                notes = "rep=$rep;trigger=countdown_timer;delay_sec=$delaySec;Automated background trigger fired"
+            )
+
+            acquireAndOpenHardware(isAutomated = true)
+        }
+
+        pendingTriggerRunnable = runnable
+        cameraHandler?.postDelayed(runnable, delayMs)
+    }
+
+    private fun acquireAndOpenHardware(isAutomated: Boolean) {
+        isAutomatedSession = isAutomated
+
+        // Check CAMERA permission
+        Log.i(TAG, "[CameraTestHarness] Camera permission check (isAutomated=$isAutomated)")
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "[CameraTestHarness] Camera permission missing")
             _harnessState.value = HarnessState.ERROR
@@ -155,10 +255,10 @@ class CameraTestService : Service() {
             return
         }
 
-        // 3. Start Camera Background Thread
+        // Start Camera Background Thread
         startCameraThread()
 
-        // 4. Acquire CameraManager and choose Camera
+        // Acquire CameraManager and choose Camera
         val cameraManager = getSystemService(Context.CAMERA_SERVICE) as? CameraManager
         if (cameraManager == null) {
             Log.e(TAG, "[CameraTestHarness] CameraManager unavailable")
@@ -245,14 +345,18 @@ class CameraTestService : Service() {
                     Log.i(TAG, "[CameraTestHarness] Camera opened")
                     _harnessState.value = HarnessState.CAMERA_OPEN
                     _serviceStatus.value = "Camera opened ($cameraId)"
+                    val rep = ExperimentLogger.repetition.value
                     ExperimentLogger.recordEvent(
+                        userAction = if (isAutomatedSession) "AUTOMATED_TRIGGER_FIRED" else "NONE",
                         cameraEvent = "CAMERA_OPENED",
                         cameraId = cameraId,
                         cameraPermission = "GRANTED",
                         foregroundServiceActive = true,
                         foregroundServiceType = "camera",
                         sessionState = "CAMERA_OPEN",
-                        cameraAvailability = "UNAVAILABLE"
+                        cameraAvailability = "UNAVAILABLE",
+                        recentUserInteraction = !isAutomatedSession,
+                        notes = if (isAutomatedSession) "rep=$rep;trigger=countdown_timer;Camera opened by automated trigger" else "rep=$rep;trigger=user_start"
                     )
                     createCaptureSession(device, cameraManager, cameraId)
                 }
@@ -382,6 +486,7 @@ class CameraTestService : Service() {
                         _harnessState.value = HarnessState.RUNNING
                         _serviceStatus.value = "Simulation RUNNING (Camera: $cameraId active)"
                         updateNotification("Camera simulation active ($cameraId) - running")
+                        val rep = ExperimentLogger.repetition.value
                         ExperimentLogger.recordEvent(
                             cameraEvent = "CAPTURE_SESSION_STARTED",
                             cameraId = cameraId,
@@ -389,7 +494,9 @@ class CameraTestService : Service() {
                             foregroundServiceActive = true,
                             foregroundServiceType = "camera",
                             sessionState = "RUNNING",
-                            cameraAvailability = "UNAVAILABLE"
+                            cameraAvailability = "UNAVAILABLE",
+                            recentUserInteraction = !isAutomatedSession,
+                            notes = if (isAutomatedSession) "rep=$rep;trigger=countdown_timer;Capture session streaming" else "rep=$rep;trigger=user_start"
                         )
                     } catch (e: Exception) {
                         Log.e(TAG, "[CameraTestHarness] Failed to start repeating request", e)
@@ -446,6 +553,12 @@ class CameraTestService : Service() {
             }
             isStopping = true
             isSimulationRequested = false
+            pendingTriggerRunnable?.let {
+                cameraHandler?.removeCallbacks(it)
+                pendingTriggerRunnable = null
+            }
+            isAutomatedTriggerArmed = false
+            isAutomatedSession = false
             prevCameraId = selectedCameraId ?: "NONE"
             selectedCameraId = null
 
@@ -543,6 +656,12 @@ class CameraTestService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         synchronized(cameraLock) {
+            pendingTriggerRunnable?.let {
+                cameraHandler?.removeCallbacks(it)
+                pendingTriggerRunnable = null
+            }
+            isAutomatedTriggerArmed = false
+            isAutomatedSession = false
             if (isSessionActive || isSimulationRequested) {
                 stopSimulation()
             }

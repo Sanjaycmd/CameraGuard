@@ -162,6 +162,7 @@ fun HarnessScreen() {
 
     val currentScenario by ExperimentLogger.currentScenario.collectAsStateWithLifecycle()
     val currentSessionId by ExperimentLogger.currentSessionId.collectAsStateWithLifecycle()
+    val repetition by ExperimentLogger.repetition.collectAsStateWithLifecycle()
     val recordCount by ExperimentLogger.recordCount.collectAsStateWithLifecycle()
     val recordedList by ExperimentLogger.records.collectAsStateWithLifecycle()
 
@@ -252,7 +253,8 @@ fun HarnessScreen() {
     val isTransitioning = harnessState in listOf(
         HarnessState.STARTING,
         HarnessState.CAMERA_OPENING,
-        HarnessState.STOPPING
+        HarnessState.STOPPING,
+        HarnessState.ARMED
     )
 
     val isError = harnessState == HarnessState.ERROR
@@ -321,6 +323,46 @@ fun HarnessScreen() {
                             )
                         }
                     }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Repetition: #$repetition",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (repetition > 1 && !isServiceRunning && !isCameraActive) {
+                                        ExperimentLogger.setRepetition(repetition - 1)
+                                    }
+                                },
+                                enabled = repetition > 1 && !isServiceRunning && !isCameraActive,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("-")
+                            }
+                            Button(
+                                onClick = {
+                                    if (!isServiceRunning && !isCameraActive) {
+                                        ExperimentLogger.incrementRepetition()
+                                    }
+                                },
+                                enabled = !isServiceRunning && !isCameraActive,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("+ Next Rep")
+                            }
+                        }
+                    }
                 }
             }
 
@@ -335,6 +377,7 @@ fun HarnessScreen() {
             val indicatorColor = when {
                 isError -> Color.Red
                 isCameraActive -> Color.Red
+                harnessState == HarnessState.ARMED -> Color(0xFFFF9800)
                 isTransitioning -> Color(0xFFFFA000)
                 else -> Color.Gray
             }
@@ -371,6 +414,10 @@ fun HarnessScreen() {
                     )
                     Text(
                         text = "Sample/Session ID: ${currentSessionId ?: "None (will create on start)"}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = "Repetition: #$repetition",
                         style = MaterialTheme.typography.bodySmall
                     )
                     Text(
@@ -448,7 +495,7 @@ fun HarnessScreen() {
                                 return@Button
                             }
                             permissionDeniedEvaluated = true
-                            ExperimentLogger.startNewSession(currentScenario)
+                            ExperimentLogger.startNewSession(currentScenario, repetition)
                             ExperimentLogger.recordEvent(
                                 userAction = "USER_EVALUATED_PERMISSION_DENIED",
                                 cameraEvent = "NONE",
@@ -457,7 +504,7 @@ fun HarnessScreen() {
                                 activityState = "RESUMED",
                                 appVisibility = "FOREGROUND",
                                 sessionState = "IDLE",
-                                notes = "Permission Denied scenario evaluated; camera acquisition withheld"
+                                notes = "rep=$repetition;Permission Denied scenario evaluated; camera acquisition withheld"
                             )
                             ExperimentLogger.stopSession()
                             localStatusMessage = "Scenario: Permission Denied evaluated and completed."
@@ -470,7 +517,7 @@ fun HarnessScreen() {
                                 return@Button
                             }
                             observationEvaluated = true
-                            ExperimentLogger.startNewSession(currentScenario)
+                            ExperimentLogger.startNewSession(currentScenario, repetition)
                             ExperimentLogger.recordEvent(
                                 userAction = "USER_EVALUATED_OBSERVATION",
                                 cameraEvent = "NONE",
@@ -480,7 +527,7 @@ fun HarnessScreen() {
                                 appVisibility = "FOREGROUND",
                                 foregroundServiceActive = false,
                                 sessionState = "IDLE",
-                                notes = "Ambiguous Context observation evaluated (no camera session initiated)"
+                                notes = "rep=$repetition;Ambiguous Context observation evaluated (no camera session initiated)"
                             )
                             ExperimentLogger.stopSession()
                             localStatusMessage = "Scenario: Ambiguous Context observation recorded (no camera opened)."
@@ -492,7 +539,7 @@ fun HarnessScreen() {
                                 localStatusMessage = "Permission is NOT granted. Grant permission before evaluating."
                                 return@Button
                             }
-                            ExperimentLogger.startNewSession(currentScenario)
+                            ExperimentLogger.startNewSession(currentScenario, repetition)
                             ExperimentLogger.recordEvent(
                                 userAction = "USER_EVALUATED_NO_CAMERA",
                                 cameraEvent = "NONE",
@@ -502,10 +549,47 @@ fun HarnessScreen() {
                                 appVisibility = "FOREGROUND",
                                 foregroundServiceActive = false,
                                 sessionState = "IDLE",
-                                notes = "Permission Granted / No Camera evaluated; camera acquisition withheld"
+                                notes = "rep=$repetition;Permission Granted / No Camera evaluated; camera acquisition withheld"
                             )
                             ExperimentLogger.stopSession()
                             localStatusMessage = "Scenario: Permission held, camera access omitted."
+                            return@Button
+                        }
+
+                        if (currentScenario == ExperimentScenario.AUTOMATED_BACKGROUND_TRIGGER) {
+                            if (!hasCameraPermission) {
+                                localStatusMessage = "Camera permission required before arming trigger."
+                                permissionLauncher.launch(permissionsToRequest)
+                                return@Button
+                            }
+                            if (isServiceRunning || isCameraActive) {
+                                localStatusMessage = "Simulation already active."
+                                return@Button
+                            }
+                            Log.i(TAG, "[CameraTestHarness] Arming automated trigger")
+                            ExperimentLogger.startNewSession(currentScenario, repetition)
+                            ExperimentLogger.recordEvent(
+                                userAction = "USER_ARMED_TRIGGER",
+                                cameraEvent = "NONE",
+                                activityState = "RESUMED",
+                                appVisibility = "FOREGROUND",
+                                foregroundServiceActive = true,
+                                foregroundServiceType = "camera",
+                                sessionState = "ARMED",
+                                notes = "rep=$repetition;trigger=countdown_timer;delay_sec=5;User armed automated trigger"
+                            )
+                            try {
+                                val armIntent = Intent(context, CameraTestService::class.java).apply {
+                                    action = CameraTestService.ACTION_ARM_AUTOMATED_TRIGGER
+                                    putExtra(CameraTestService.EXTRA_TRIGGER_DELAY_MS, 5000L)
+                                }
+                                ContextCompat.startForegroundService(context, armIntent)
+                                localStatusMessage = "Automated trigger armed (5s countdown). Press HOME now to test background activation!"
+                                Toast.makeText(context, "Trigger armed! Switch to Home/Background now", Toast.LENGTH_LONG).show()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "[CameraTestHarness] Failed to arm automated trigger", e)
+                                localStatusMessage = "Failed to arm trigger: ${e.message}"
+                            }
                             return@Button
                         }
 
@@ -523,11 +607,12 @@ fun HarnessScreen() {
                         }
 
                         Log.i(TAG, "[CameraTestHarness] Simulation start requested")
-                        ExperimentLogger.startNewSession(currentScenario)
+                        ExperimentLogger.startNewSession(currentScenario, repetition)
                         ExperimentLogger.recordEvent(
                             userAction = "USER_PRESSED_START",
                             activityState = "RESUMED",
-                            appVisibility = "FOREGROUND"
+                            appVisibility = "FOREGROUND",
+                            notes = "rep=$repetition;trigger=user_start"
                         )
 
                         try {
@@ -548,7 +633,11 @@ fun HarnessScreen() {
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("START EXPERIMENT", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        if (currentScenario == ExperimentScenario.AUTOMATED_BACKGROUND_TRIGGER) "ARM TRIGGER (5s)" else "START EXPERIMENT",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
 
                 OutlinedButton(
@@ -643,13 +732,13 @@ fun HarnessScreen() {
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Phase 3.5 Ground Truth Collection",
+                        text = "Phase 4.2 Controlled Dataset Expansion",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Generates structured ground truth records across 7 controlled test scenarios. Distinguishes foreground vs. background continuation as contextual signals for later ML analysis without modifying CameraGuard.",
+                        text = "Generates structured ground-truth records across 8 controlled test scenarios with repetition tracking. Supports automated background triggers without user interaction while keeping CameraGuard production code untouched.",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

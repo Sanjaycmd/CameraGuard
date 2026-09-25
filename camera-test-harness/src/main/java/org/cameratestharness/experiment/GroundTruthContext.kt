@@ -6,7 +6,8 @@ enum class GroundTruthContext(val label: String) {
     CAMERA_SESSION_CLOSED("CAMERA_SESSION_CLOSED"),
     PERMISSION_DENIED("PERMISSION_DENIED"),
     NO_CAMERA_ACTIVITY("NO_CAMERA_ACTIVITY"),
-    AMBIGUOUS_CONTEXT("AMBIGUOUS_CONTEXT");
+    AMBIGUOUS_CONTEXT("AMBIGUOUS_CONTEXT"),
+    AUTOMATED_BACKGROUND_TRIGGER("AUTOMATED_BACKGROUND_TRIGGER");
 
     companion object {
         fun fromLabel(label: String): GroundTruthContext? = entries.find { it.label == label }

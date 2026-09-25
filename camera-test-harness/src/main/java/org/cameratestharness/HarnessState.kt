@@ -2,6 +2,7 @@ package org.cameratestharness
 
 enum class HarnessState {
     IDLE,
+    ARMED,
     STARTING,
     CAMERA_OPENING,
     CAMERA_OPEN,

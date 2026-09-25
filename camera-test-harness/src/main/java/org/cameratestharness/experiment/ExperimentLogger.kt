@@ -43,6 +43,9 @@ object ExperimentLogger {
     private val _currentSessionId = MutableStateFlow<String?>(null)
     val currentSessionId: StateFlow<String?> = _currentSessionId.asStateFlow()
 
+    private val _repetition = MutableStateFlow(1)
+    val repetition: StateFlow<Int> = _repetition.asStateFlow()
+
     private var sessionStartTimeMs: Long = 0L
     private var sessionLifecycle: SessionLifecycle = SessionLifecycle.IDLE
 
@@ -99,10 +102,25 @@ object ExperimentLogger {
         )
     }
 
-    fun startNewSession(scenario: ExperimentScenario = _currentScenario.value): String {
+    fun setRepetition(rep: Int) {
+        synchronized(lock) {
+            _repetition.value = rep.coerceAtLeast(1)
+        }
+    }
+
+    fun incrementRepetition() {
+        synchronized(lock) {
+            _repetition.value = _repetition.value + 1
+        }
+    }
+
+    fun startNewSession(
+        scenario: ExperimentScenario = _currentScenario.value,
+        rep: Int = _repetition.value
+    ): String {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val shortUuid = UUID.randomUUID().toString().take(6)
-        val newSessionId = "exp_${timestamp}_${shortUuid}"
+        val newSessionId = "exp_${timestamp}_rep${rep}_${shortUuid}"
 
         synchronized(lock) {
             _currentSessionId.value = newSessionId
@@ -111,7 +129,7 @@ object ExperimentLogger {
             sessionLifecycle = SessionLifecycle.IDLE
         }
 
-        Log.i(TAG, "$LOG_PREFIX Experiment started: session=$newSessionId, scenario=${scenario.id}")
+        Log.i(TAG, "$LOG_PREFIX Experiment started: session=$newSessionId, scenario=${scenario.id}, rep=$rep")
         return newSessionId
     }
 
@@ -131,6 +149,7 @@ object ExperimentLogger {
             _records.value = emptyList()
             _recordCount.value = 0
             _currentSessionId.value = null
+            _repetition.value = 1
             sessionStartTimeMs = 0L
             sessionLifecycle = SessionLifecycle.IDLE
             storageFile?.let { file ->
@@ -173,7 +192,8 @@ object ExperimentLogger {
                 if (sId == null) {
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(nowMs))
                     val shortUuid = UUID.randomUUID().toString().take(6)
-                    sId = "exp_${timestamp}_${shortUuid}"
+                    val rep = _repetition.value
+                    sId = "exp_${timestamp}_rep${rep}_${shortUuid}"
                     _currentSessionId.value = sId
                     sessionStartTimeMs = nowMs
                     sessionLifecycle = SessionLifecycle.IDLE
@@ -246,6 +266,12 @@ object ExperimentLogger {
                     foregroundServiceActive = foregroundServiceActive
                 )
 
+                val finalNotes = when {
+                    notes.isBlank() -> "rep=${_repetition.value}"
+                    notes.contains("rep=") -> notes
+                    else -> "rep=${_repetition.value};$notes"
+                }
+
                 val record = ExperimentRecord(
                     sampleId = sId,
                     timestamp = nowIso,
@@ -266,7 +292,7 @@ object ExperimentLogger {
                     recentUserInteraction = recentUserInteraction,
                     lifecycleEvent = lifecycleEvent,
                     cameraAvailability = cameraAvailability,
-                    notes = notes
+                    notes = finalNotes
                 )
 
                 recordsList.add(record)
@@ -329,6 +355,13 @@ object ExperimentLogger {
         return when (scenario) {
             ExperimentScenario.PERMISSION_GRANTED_NO_CAMERA -> GroundTruthContext.NO_CAMERA_ACTIVITY.label
             ExperimentScenario.CAMERA_SESSION_CLOSED -> GroundTruthContext.CAMERA_SESSION_CLOSED.label
+            ExperimentScenario.AUTOMATED_BACKGROUND_TRIGGER -> {
+                if (cameraEvent == "CAMERA_CLOSED" || userAction == "USER_PRESSED_STOP") {
+                    GroundTruthContext.CAMERA_SESSION_CLOSED.label
+                } else {
+                    GroundTruthContext.AUTOMATED_BACKGROUND_TRIGGER.label
+                }
+            }
             ExperimentScenario.BACKGROUND_CAMERA_CONTINUATION -> {
                 if (cameraEvent == "CAMERA_CLOSED" || userAction == "USER_PRESSED_STOP") {
                     GroundTruthContext.CAMERA_SESSION_CLOSED.label

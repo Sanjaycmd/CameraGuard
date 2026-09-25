@@ -55,6 +55,13 @@ enum class ExperimentScenario(
         description = "Telemetry does not decisively establish intent; observation-only, no camera activation.",
         defaultGroundTruth = GroundTruthContext.AMBIGUOUS_CONTEXT,
         isCameraActivation = false
+    ),
+    AUTOMATED_BACKGROUND_TRIGGER(
+        id = "AUTOMATED_BACKGROUND_TRIGGER",
+        title = "Automated Background Trigger",
+        description = "Automated camera acquisition initiated without direct user start action (e.g. timed background trigger).",
+        defaultGroundTruth = GroundTruthContext.AUTOMATED_BACKGROUND_TRIGGER,
+        isCameraActivation = true
     );
 
     companion object {
