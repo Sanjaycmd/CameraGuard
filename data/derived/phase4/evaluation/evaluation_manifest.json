@@ -1,0 +1,34 @@
+{
+  "manifest_version": "1.0.0",
+  "phase": "4.6.4",
+  "timestamp_iso": "2026-09-25T19:42:32.531477+00:00",
+  "total_sessions_ingested": 92,
+  "excluded_sessions_count": 3,
+  "included_sessions_count": 89,
+  "targeted_sessions_count": 41,
+  "models_evaluated": [
+    "Logistic_Regression",
+    "Linear_SVM",
+    "Decision_Tree",
+    "Random_Forest",
+    "Isolation_Forest",
+    "Hybrid_Rule_RF_Ensemble"
+  ],
+  "tasks_evaluated": [
+    "TASK_2_BINARY_HARDWARE",
+    "TASK_3_THREE_TIER_POLICY",
+    "TASK_5_ANOMALY_DETECTION",
+    "TASK_6_HYBRID_ENSEMBLE"
+  ],
+  "primary_evaluation_summary": {
+    "task2_target": "CAMERA_ACQUISITION vs NO_CAMERA_CONTROL",
+    "task3_target": "LEGITIMATE vs AMBIGUOUS vs CONTROLS",
+    "task5_target": "One-Class Anomaly Detection (Inliers: Legitimate FG, Outliers: Ambiguous/Timer)",
+    "task6_target": "Deterministic Rule Baseline vs Hybrid Rule + ML Ensemble",
+    "ablation_tested": "ORACLE_PERMISSION_ABLATION (F04 un-clamped)"
+  },
+  "critical_scientific_constraint": {
+    "verified_malware_samples": 0,
+    "statement": "The dataset contains ZERO verified malicious/spyware samples. Automated background triggers and screen-off continuations represent authorized controlled research conditions, NOT real malware."
+  }
+}
