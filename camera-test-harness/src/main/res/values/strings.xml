@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Camera Test Harness</string>
+    <string name="simulation_status_idle">Simulation Idle</string>
+    <string name="simulation_status_running">Simulation Running</string>
+    <string name="start_simulation">START CAMERA SIMULATION</string>
+    <string name="stop_simulation">STOP CAMERA SIMULATION</string>
+</resources>

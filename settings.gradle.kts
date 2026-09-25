@@ -31,3 +31,4 @@ plugins {
 
 rootProject.name = "CameraGuard"
 include(":app")
+include(":camera-test-harness")
