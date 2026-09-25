@@ -1,0 +1,33 @@
+{
+  "dataset_version": "1.0.0",
+  "schema_version": "1.0.0",
+  "extraction_timestamp": "2026-09-25T22:29:48.497Z",
+  "total_raw_rows_processed": 109,
+  "total_reconstructed_sessions": 16,
+  "ml_included_sessions_count": 13,
+  "ml_excluded_sessions_count": 3,
+  "t0_production_feature_count": 11,
+  "t1_early_session_feature_count": 0,
+  "t2_retrospective_feature_count": 9,
+  "class_distribution": {
+    "USER_INITIATED_FOREGROUND": 6,
+    "USER_INITIATED_BACKGROUND_CONTINUATION": 2,
+    "PERMISSION_DENIED": 5,
+    "NO_CAMERA_ACTIVITY": 1,
+    "AMBIGUOUS_CONTEXT": 2
+  },
+  "constant_features": [
+    "f01_screen_state_code",
+    "f02_is_screen_interactive",
+    "f03_is_device_locked",
+    "f05_is_known_camera_app"
+  ],
+  "low_variance_features": [
+
+  ],
+  "exclusion_summary": {
+    "exp_20260925_205422_4e75d0": "Violates scenario ground-truth invariants",
+    "exp_20260925_205424_0f3f21": "Violates scenario ground-truth invariants",
+    "exp_20260925_205605_1b68ae": "Pre-Phase-3.5.1 AMBIGUOUS_CONTEXT invalidly opened camera"
+  }
+}
