@@ -1,0 +1,52 @@
+{
+  "manifest_version": "1.0.0",
+  "phase": "4.7",
+  "timestamp_iso": "2026-09-25T19:58:00.886894+00:00",
+  "objective": "Two-Tier Hybrid Rules + ML Contextual Resolver Research Prototype",
+  "candidate_model": "Decision Tree (max_depth=5, min_samples_split=3)",
+  "features_used": [
+    "f01_screen_state",
+    "f02_is_interactive",
+    "f03_is_locked",
+    "f04_perm_clamped",
+    "f05_known_camera_app",
+    "f06_package_confidence",
+    "f07_inference_method",
+    "f08_delta_resumed_ms",
+    "f09_recent_activity_count",
+    "f10_camera_id",
+    "f11_is_back_camera"
+  ],
+  "f04_clamped_policy": "UNVERIFIED (-1.0)",
+  "datasets": {
+    "targeted_sessions": 41,
+    "accumulated_sessions": 89,
+    "excluded_sessions": 3
+  },
+  "authoritative_results": {
+    "targeted_41": {
+      "system_a_rules_overall_acc": 0.6098,
+      "system_a_tier1_coverage": 0.6098,
+      "system_a_unknown_rate": 0.3902,
+      "system_b_dt_oof_acc": 0.9024,
+      "system_b_macro_f1": 0.9006,
+      "system_c_hybrid_true_acc": 0.9268,
+      "system_c_macro_f1": 0.922,
+      "system_c_unknown_resolution_rate": 1.0,
+      "system_c_ml_subset_acc": 0.8125,
+      "system_c_false_legitimate": 0,
+      "system_c_false_ambiguous": 0
+    },
+    "accumulated_89": {
+      "system_a_rules_overall_acc": 0.618,
+      "system_b_dt_oof_acc": 0.8652,
+      "system_c_hybrid_true_acc": 0.9101,
+      "system_c_macro_f1": 0.9048,
+      "system_c_unknown_resolution_rate": 1.0
+    }
+  },
+  "threat_model_integrity": {
+    "verified_malware_samples": 0,
+    "statement": "The evaluated dataset contains no verified malicious or covert unauthorized camera-access samples. Automated background triggers evaluate telemetry boundaries under controlled research conditions, NOT confirmed malware."
+  }
+}

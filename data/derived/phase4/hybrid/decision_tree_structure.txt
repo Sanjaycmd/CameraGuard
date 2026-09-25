@@ -1,0 +1,23 @@
+CameraGuard Phase 4.7 — Decision Tree Structure (FINAL_RESEARCH_FIT)
+Classes: ['AMBIGUOUS', 'CONTROLS', 'LEGITIMATE']
+Note: This artifact is exported for prototype transparency, NOT for OOF evaluation.
+
+|--- f06_package_confidence <= 1.50
+|   |--- f07_inference_method <= 1.00
+|   |   |--- f09_recent_activity_count <= 1.00
+|   |   |   |--- f03_is_locked <= -0.50
+|   |   |   |   |--- class: CONTROLS
+|   |   |   |--- f03_is_locked >  -0.50
+|   |   |   |   |--- class: CONTROLS
+|   |   |--- f09_recent_activity_count >  1.00
+|   |   |   |--- class: AMBIGUOUS
+|   |--- f07_inference_method >  1.00
+|   |   |--- f09_recent_activity_count <= 1.50
+|   |   |   |--- f08_delta_resumed_ms <= 59.50
+|   |   |   |   |--- class: AMBIGUOUS
+|   |   |   |--- f08_delta_resumed_ms >  59.50
+|   |   |   |   |--- class: LEGITIMATE
+|   |   |--- f09_recent_activity_count >  1.50
+|   |   |   |--- class: AMBIGUOUS
+|--- f06_package_confidence >  1.50
+|   |--- class: LEGITIMATE

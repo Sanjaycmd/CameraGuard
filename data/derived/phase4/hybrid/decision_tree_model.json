@@ -1,0 +1,119 @@
+{
+  "artifact_label": "FINAL_RESEARCH_FIT",
+  "phase": "4.7",
+  "timestamp_iso": "2026-09-25T19:58:00.886521+00:00",
+  "random_seed": 42,
+  "max_depth": 5,
+  "min_samples_split": 3,
+  "classes": [
+    "AMBIGUOUS",
+    "CONTROLS",
+    "LEGITIMATE"
+  ],
+  "features": [
+    "f01_screen_state",
+    "f02_is_interactive",
+    "f03_is_locked",
+    "f04_perm_clamped",
+    "f05_known_camera_app",
+    "f06_package_confidence",
+    "f07_inference_method",
+    "f08_delta_resumed_ms",
+    "f09_recent_activity_count",
+    "f10_camera_id",
+    "f11_is_back_camera"
+  ],
+  "tree_structure": {
+    "type": "split",
+    "feature": "f06_package_confidence",
+    "threshold": 1.5,
+    "left": {
+      "type": "split",
+      "feature": "f07_inference_method",
+      "threshold": 1.0,
+      "left": {
+        "type": "split",
+        "feature": "f09_recent_activity_count",
+        "threshold": 1.0,
+        "left": {
+          "type": "split",
+          "feature": "f03_is_locked",
+          "threshold": -0.5,
+          "left": {
+            "type": "leaf",
+            "predicted_class_index": 1,
+            "value_distribution": [
+              0.125,
+              0.5,
+              0.375
+            ]
+          },
+          "right": {
+            "type": "leaf",
+            "predicted_class_index": 1,
+            "value_distribution": [
+              0.20833333333333334,
+              0.75,
+              0.041666666666666664
+            ]
+          }
+        },
+        "right": {
+          "type": "leaf",
+          "predicted_class_index": 0,
+          "value_distribution": [
+            1.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "right": {
+        "type": "split",
+        "feature": "f09_recent_activity_count",
+        "threshold": 1.5,
+        "left": {
+          "type": "split",
+          "feature": "f08_delta_resumed_ms",
+          "threshold": 59.5,
+          "left": {
+            "type": "leaf",
+            "predicted_class_index": 0,
+            "value_distribution": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          },
+          "right": {
+            "type": "leaf",
+            "predicted_class_index": 2,
+            "value_distribution": [
+              0.0,
+              0.0,
+              1.0
+            ]
+          }
+        },
+        "right": {
+          "type": "leaf",
+          "predicted_class_index": 0,
+          "value_distribution": [
+            1.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    "right": {
+      "type": "leaf",
+      "predicted_class_index": 2,
+      "value_distribution": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  }
+}
