@@ -143,10 +143,9 @@ object ProductionDecisionTree {
 }
 ```
 
-### Performance & Memory Properties
+### Performance & Computational Properties
 - **Maximum Depth**: 4 (well within the $\le 5$ budget).
-- **Execution Overhead**: Under 1 microsecond ($\approx 0.0008$ ms) on physical ARM64 CPU.
-- **Heap Allocations**: 0 bytes during inference (operates directly on scalar registers/primitives).
+- **Inference Complexity**: Inference is computationally lightweight because the selected tree is implemented as bounded native Kotlin conditional branches with no external ML runtime.
 - **External Dependencies**: Zero (no Python, no ONNX Runtime, no TensorFlow Lite, no C++ native libraries).
 
 ---
