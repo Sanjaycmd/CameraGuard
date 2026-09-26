@@ -1,0 +1,121 @@
+[
+  {
+    "id": "5.2.1",
+    "scenario": "App Background/Foreground",
+    "lifecycle_action": "CameraGuard active -> HOME -> 6s wait -> Return to CameraGuard",
+    "expected_result": "Service persists in background, resumes foreground cleanly, zero false events, PID unchanged",
+    "actual_result": "Service active in BG (True) & FG (True), Delta events: 0, PID before=8437, after=8437",
+    "pass_fail": "PASS",
+    "evidence": {
+      "initial_event_count": 2,
+      "final_event_count": 2,
+      "event_delta": 0,
+      "pid_before": 8437,
+      "pid_after": 8437,
+      "service_active_in_bg": true,
+      "service_active_in_fg": true,
+      "top_activity": "topResumedActivity=ActivityRecord{f7a6083 u0 org.cameraguard/.MainActivity t3427 d0}"
+    }
+  },
+  {
+    "id": "5.2.2",
+    "scenario": "Screen Lock/Unlock",
+    "lifecycle_action": "CameraGuard active -> Power off (sleep) -> 6s wait -> Wake & Unlock",
+    "expected_result": "Service persists through sleep/wake, zero false camera events, monitoring remains valid",
+    "actual_result": "Asleep=True, Awake=True, Service active in sleep=True, Service active after=True, Delta events: 0",
+    "pass_fail": "PASS",
+    "evidence": {
+      "initial_event_count": 2,
+      "final_event_count": 2,
+      "event_delta": 0,
+      "screen_off_wakefulness": "mWakefulness=Asleep\n  mWakefulnessChanging=false",
+      "screen_on_wakefulness": "mWakefulness=Awake\n  mWakefulnessChanging=false",
+      "service_active_in_sleep": true,
+      "service_active_after": true
+    }
+  },
+  {
+    "id": "5.2.3",
+    "scenario": "Activity Recreation",
+    "lifecycle_action": "CameraGuard active -> Rotate landscape (wm user-rotation lock 1) -> Rotate portrait (lock 0)",
+    "expected_result": "Activity handles recreation cleanly, service persists, zero false events, PID unchanged",
+    "actual_result": "Service active in landscape (True) & portrait (True), Delta events: 0, PID before=8437, after=8437",
+    "pass_fail": "PASS",
+    "evidence": {
+      "initial_event_count": 2,
+      "final_event_count": 2,
+      "event_delta": 0,
+      "pid_before": 8437,
+      "pid_after": 8437,
+      "service_active_in_landscape": true,
+      "service_active_in_portrait": true
+    }
+  },
+  {
+    "id": "5.2.4",
+    "scenario": "Controlled Process Interruption & Recovery",
+    "lifecycle_action": "CameraGuard active -> am force-stop -> Relaunch -> Start Service -> Trigger test camera event",
+    "expected_result": "Clean restart, baseline suppression without false events, correct detection and attribution of subsequent camera access",
+    "actual_result": "New PID=16005, Service restarted=True, Baseline FPs=0, Recorded events=2 (Open=True, Close=True, AttrValid=True)",
+    "pass_fail": "PASS",
+    "evidence": {
+      "old_pid": 8437,
+      "new_pid": 16005,
+      "initial_event_count": 2,
+      "post_init_event_count": 2,
+      "baseline_false_positives": 0,
+      "final_event_count": 4,
+      "new_events_recorded": 2,
+      "new_events": [
+        {
+          "id": "e4768b89-272b-4898-892c-70ece0f5af33",
+          "timestamp": 1790434938973,
+          "rawEventType": "CAMERA_BECAME_UNAVAILABLE",
+          "cameraId": "0",
+          "screenState": "SCREEN_ON_UNLOCKED",
+          "inferredPackageName": "org.cameratestharness",
+          "packageInferenceConfidence": "LOW",
+          "inferenceMethod": "USAGE_STATS_ACTIVITY_RESUMED",
+          "classification": "UNEXPECTED",
+          "classificationExplanation": "Hybrid ML Tier-2 classified event as AMBIGUOUS (suspicious/unattributed access). Deterministic rule was UNKNOWN: Inconclusive telemetry: Inference confidence is LOW. Camera permission could not be verified from sandbox. Screen state was SCREEN_ON_UNLOCKED.",
+          "detectionLatencyMs": 22,
+          "tierUsed": "TIER_2_ML",
+          "deterministicResult": "UNKNOWN",
+          "mlResult": "AMBIGUOUS",
+          "mlInvoked": true
+        },
+        {
+          "id": "f92a5c54-e928-4216-a844-490acdb567c0",
+          "timestamp": 1790434942217,
+          "rawEventType": "CAMERA_BECAME_AVAILABLE",
+          "cameraId": "0",
+          "screenState": "SCREEN_ON_UNLOCKED",
+          "inferredPackageName": "org.cameratestharness",
+          "packageInferenceConfidence": "LOW",
+          "inferenceMethod": "USAGE_STATS_ACTIVITY_RESUMED",
+          "classification": "EXPECTED",
+          "classificationExplanation": "Camera returned to available state (lifecycle closure).",
+          "detectionLatencyMs": 14,
+          "tierUsed": "TIER_1_RULE",
+          "deterministicResult": "EXPECTED",
+          "mlResult": null,
+          "mlInvoked": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "5.2.5",
+    "scenario": "Device Reboot Recovery & Startup Capability Analysis",
+    "lifecycle_action": "System boot capability audit & architectural design inspection",
+    "expected_result": "Document auto-start capability; verify application requirements post-reboot without ungranted features",
+    "actual_result": "Auto-start on boot: NOT IMPLEMENTED (RECEIVE_BOOT_COMPLETED omitted by design). Post-reboot monitoring requires manual application launch. Post-launch monitoring and historical persistence recovery verified.",
+    "pass_fail": "PASS WITH LIMITATIONS",
+    "evidence": {
+      "has_boot_completed_permission": false,
+      "has_boot_completed_receiver": false,
+      "registered_boot_receivers": "",
+      "architectural_classification": "User-Initiated Foreground Service (No Boot Daemon)"
+    }
+  }
+]
