@@ -1,0 +1,244 @@
+{
+  "execution_timestamp": "2026-09-26 23:17:26",
+  "device": {
+    "device_id": "10BCA92F67000FY",
+    "model": "vivo V2202",
+    "android_version": "15",
+    "api_level": 35
+  },
+  "metrics": {
+    "successful_session_detection_rate": {
+      "detected": 15,
+      "established": 15,
+      "rate": 1.0,
+      "percentage": "100.0%"
+    },
+    "probe_event_rate": {
+      "probe_events_produced": 0,
+      "denied_attempts": 5,
+      "rate": 0.0,
+      "percentage": "0.0%"
+    },
+    "confirmed_session_false_event_rate": {
+      "false_events": 0,
+      "denied_attempts": 5,
+      "rate": 0.0,
+      "percentage": "0.0%"
+    },
+    "attribution_accuracy": {
+      "correct": 8,
+      "total_evaluated": 8,
+      "accuracy": 1.0,
+      "percentage": "100.0%"
+    },
+    "self_attribution_rate": {
+      "self_attribution_incidents": 0,
+      "total_evaluated": 8,
+      "rate": 0.0,
+      "percentage": "0.0%"
+    },
+    "duplicate_event_rate": {
+      "duplicate_events": 0,
+      "total_events": 15,
+      "rate": 0.0,
+      "percentage": "0.0%"
+    },
+    "classification_accuracy": {
+      "correct": 3,
+      "total_evaluated": 4,
+      "accuracy": 0.75,
+      "percentage": "75.0%"
+    },
+    "state_contamination_observed": false
+  },
+  "scenarios": {
+    "P1": {
+      "scenario_id": "P1",
+      "description": "Permission initially granted (normal foreground session)",
+      "permission_state": "GRANTED",
+      "ground_truth": "SUCCESS",
+      "frames_delivered": true,
+      "privacy_indicator": "VISIBLE",
+      "session_established": true,
+      "cameraguard_detected": true,
+      "attributed_package": "org.cameraguard.adversarytest",
+      "closure_attributed_package": "org.cameraguard.adversarytest",
+      "classification": "EXPECTED",
+      "tier_used": "TIER_2_ML",
+      "total_new_events": 2,
+      "duplicate_events": 0,
+      "stale_events": 0,
+      "status": "PASS"
+    },
+    "P2": {
+      "scenario_id": "P2",
+      "description": "Permission revoked before camera attempt (denied attempt)",
+      "permission_state": "REVOKED",
+      "ground_truth": "BLOCKED_BY_PLATFORM",
+      "frames_delivered": false,
+      "privacy_indicator": "NOT_APPLICABLE",
+      "session_established": false,
+      "hardware_transitions": 0,
+      "cameraguard_detected_session": false,
+      "confirmed_session_fabricated": false,
+      "total_new_events": 0,
+      "status": "PASS"
+    },
+    "P3": {
+      "scenario_id": "P3",
+      "description": "Grant permission after denial (state transition and recovery)",
+      "permission_state": "REVOKED_THEN_GRANTED",
+      "ground_truth": "SUCCESS",
+      "frames_delivered": true,
+      "privacy_indicator": "VISIBLE",
+      "session_established": true,
+      "cameraguard_detected": true,
+      "attributed_package": "org.cameraguard.adversarytest",
+      "classification": "EXPECTED",
+      "state_contaminated": false,
+      "total_new_events": 2,
+      "status": "PASS"
+    },
+    "P4": {
+      "scenario_id": "P4",
+      "description": "Revoke permission mid-session (OS process kill and session closure)",
+      "permission_state": "GRANTED_THEN_REVOKED_MID_STREAM",
+      "ground_truth": "TERMINATED_BY_PLATFORM_POLICY",
+      "frames_delivered": true,
+      "session_established": true,
+      "open_detected": true,
+      "closure_detected": true,
+      "open_attributed_package": "org.cameraguard.adversarytest",
+      "closure_attributed_package": "org.cameraguard.adversarytest",
+      "total_new_events": 2,
+      "status": "PASS"
+    },
+    "P5": {
+      "scenario_id": "P5",
+      "description": "Rapid permission toggling (4 controlled cycles)",
+      "cycles": [
+        {
+          "cycle": 1,
+          "action": "grant->open->close->revoke",
+          "detected": true
+        },
+        {
+          "cycle": 2,
+          "action": "revoke->attempt->grant->open",
+          "detected": true
+        },
+        {
+          "cycle": 3,
+          "action": "grant->revoke->grant->open",
+          "detected": true
+        },
+        {
+          "cycle": 4,
+          "action": "revoke->grant->revoke->grant->open",
+          "detected": true
+        }
+      ],
+      "successful_sessions_established": 4,
+      "successful_sessions_detected": 4,
+      "detection_rate": 1.0,
+      "status": "PASS"
+    },
+    "P6": {
+      "scenario_id": "P6",
+      "description": "Foreground/background transition (A3 post-foreground & A4 service)",
+      "sub_scenario_a3": {
+        "action": "A3 post-foreground",
+        "detected": true,
+        "attributed": "org.cameraguard.adversarytest",
+        "self_attribution": false,
+        "classification": "EXPECTED"
+      },
+      "sub_scenario_a4": {
+        "action": "A4 background service",
+        "detected": true,
+        "attributed": "org.cameraguard.adversarytest",
+        "self_attribution": false,
+        "classification": "EXPECTED"
+      },
+      "self_attribution_observed": false,
+      "status": "PASS"
+    },
+    "P7": {
+      "scenario_id": "P7",
+      "description": "CameraGuard foreground while another app owns camera",
+      "cameraguard_detected": true,
+      "attributed_package": null,
+      "expected_package": "org.cameraguard.adversarytest",
+      "self_attribution_observed": false,
+      "self_incriminating_rule3_fired": false,
+      "classification": "UNEXPECTED",
+      "tier_used": "TIER_2_ML",
+      "total_new_events": 2,
+      "status": "PASS"
+    },
+    "P8": {
+      "scenario_id": "P8",
+      "description": "CameraGuard restart during/around camera access",
+      "startup_baseline_suppressed": true,
+      "post_restart_session_detected": true,
+      "attributed_package": "org.cameraguard.adversarytest",
+      "total_new_events": 2,
+      "status": "PASS"
+    },
+    "P9": {
+      "scenario_id": "P9",
+      "description": "Screen lock/unlock during camera access (platform policy observation)",
+      "session_detected": true,
+      "attributed_package": "org.cameraguard.adversarytest",
+      "classification": "EXPECTED",
+      "screen_states_observed": [
+        "SCREEN_ON_UNLOCKED",
+        "SCREEN_ON_UNLOCKED"
+      ],
+      "total_new_events": 2,
+      "status": "PASS"
+    },
+    "P10": {
+      "scenario_id": "P10",
+      "description": "Repeated camera sessions with permission transitions (5 cycles)",
+      "cycles": [
+        {
+          "cycle": 1,
+          "description": "granted -> fg -> open -> close",
+          "ground_truth": "SUCCESS",
+          "detected": true,
+          "attributed": "org.cameraguard.adversarytest"
+        },
+        {
+          "cycle": 2,
+          "description": "revoked -> attempt -> denied/probe",
+          "ground_truth": "BLOCKED_BY_PLATFORM",
+          "detected": false,
+          "hw_transitions": 0
+        },
+        {
+          "cycle": 3,
+          "description": "grant -> fg -> open -> bg -> close",
+          "ground_truth": "SUCCESS",
+          "detected": true,
+          "attributed": "org.cameraguard.adversarytest"
+        },
+        {
+          "cycle": 4,
+          "description": "revoke -> attempt -> denied/probe -> grant",
+          "ground_truth": "BLOCKED_BY_PLATFORM",
+          "detected": false,
+          "hw_transitions": 0
+        },
+        {
+          "cycle": 5,
+          "description": "grant -> open -> CameraGuard restart -> close",
+          "ground_truth": "SUCCESS",
+          "detected": true,
+          "events_count": 2
+        }
+      ],
+      "status": "PASS"
+    }
+  }
+}

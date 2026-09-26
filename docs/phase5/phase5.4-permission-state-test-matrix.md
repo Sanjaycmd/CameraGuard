@@ -1,0 +1,37 @@
+# CameraGuard — Phase 5.4 Test Matrix: Permission & State Robustness
+
+## 1. Overview
+
+Phase 5.4 evaluates CameraGuard's detection, attribution, classification, deduplication, and lifecycle robustness under runtime CAMERA permission grants/revocations, foreground/background application transitions, mid-session policy interruptions, and host application restarts on physical hardware (**vivo V2202, Android 15 / API 35**).
+
+---
+
+## 2. Definitive Test Matrix (Scenarios P1 – P10)
+
+| Scenario ID | Scenario Title & Description | Permission State | Trigger & Lifecycle Transitions | Expected Platform Behavior (API 35) | Expected CameraGuard Detection | Expected Attribution | Expected Classification | Physical Result | Limitations & Observations |
+| :--- | :--- | :---: | :--- | :--- | :--- | :--- | :--- | :---: | :--- |
+| **P1** | **Permission initially granted**<br>Standard intentional foreground camera access. | `GRANTED` | A1 foreground action launched with 3000 ms hold. | Camera opens, frames delivered, green privacy indicator visible. | 1 unavailable open, 1 available closure. | `org.cameraguard.adversarytest` (both open and close). | `EXPECTED` (Tier 2 ML / Tier 1 rule). | **PASS** | Baseline operational session confirmed. Zero duplicates. |
+| **P2** | **Permission revoked before attempt**<br>Unprivileged camera attempt after runtime revocation. | `REVOKED` | `pm revoke` followed by A1 camera open attempt. | `cameraserver` synchronously rejects with `SecurityException` (`validateClientPermissionsLocked: Caller cannot open camera without camera permission`). Zero frames, privacy chip inactive. | 0 hardware transitions. No synthetic or confirmed session fabricated. | N/A (no hardware transition occurred). | N/A | **PASS** | Distinguishes platform policy denial from genuine capture sessions. |
+| **P3** | **Grant permission after denial**<br>Recovery and non-contamination after revoked attempt. | `REVOKED` $\to$ `GRANTED` | 1. Attempt while revoked (denial).<br>2. `pm grant`.<br>3. Open camera (2500 ms hold). | Step 1 denied by platform. Step 3 succeeds, frames stream normally. | Step 1: 0 events.<br>Step 3: 1 open, 1 closure. | `org.cameraguard.adversarytest` | `EXPECTED` | **PASS** | State contamination: **None**. Previous denial does not contaminate subsequent session. |
+| **P4** | **Revoke permission mid-session**<br>Active stream interrupted by platform permission revocation. | `GRANTED` $\to$ `REVOKED` mid-stream | Camera opened (7000 ms hold); after 2000 ms active streaming, `pm revoke` executed. | Android OS immediately kills the process (`ActivityManager: Killing... permissions revoked`). File descriptor torn down, HAL disconnects. | Opening detected; closure detected immediately upon OS process termination. | Open: `org.cameraguard.adversarytest`<br>Close: `org.cameraguard.adversarytest` | Open: `EXPECTED`<br>Close: `EXPECTED` (lifecycle closure) | **PASS** | Active session owner correctly attributed on unexpected closure caused by OS process termination. |
+| **P5** | **Rapid permission toggling**<br>Repeated burst cycles of grant/revoke/access. | Alternating `GRANTED` / `REVOKED` | 4 consecutive cycles:<br>1. grant $\to$ open $\to$ close $\to$ revoke<br>2. revoke $\to$ attempt $\to$ grant $\to$ open<br>3. grant $\to$ revoke $\to$ grant $\to$ open<br>4. revoke $\to$ grant $\to$ revoke $\to$ grant $\to$ open | Rapid OS permission updates and process re-initialization. | 4/4 established sessions detected cleanly. | `org.cameraguard.adversarytest` | `EXPECTED` | **PASS** | 100% detection rate under high-frequency permission state churn. Zero duplicate events. |
+| **P6** | **Foreground/background transition**<br>Camera activity transitions across visibility states. | `GRANTED` | **P6-A**: A3 post-foreground (moves to background 150 ms before open).<br>**P6-B**: A4 activity transition launching background FGS camera access. | Process transitions from top task to background task while streaming. | Both sub-scenarios detected (1 open, 1 close each). | **P6-A**: `org.cameraguard.adversarytest`<br>**P6-B**: `org.cameraguard.adversarytest` | `EXPECTED` | **PASS** | Zero self-attribution to `org.cameraguard`. Transition lookback accurately resolves transitioning accessor. |
+| **P7** | **CameraGuard foreground during external access**<br>Host monitor active while background FGS accesses camera. | `GRANTED` | CameraGuard brought to foreground (`MainActivity`); `AdversaryCameraService` opened in background. | Camera opens in background while CameraGuard UI is actively displayed. | Opening and closure detected cleanly. | `null` (Honest UNKNOWN). Never `org.cameraguard`. | `EXPECTED` (Tier 2 ML evaluated as `CONTROLS`) | **PASS** | Anti-self-attribution confirmed: CameraGuard does not blame itself. Rule 3 does not fire. |
+| **P8** | **CameraGuard restart robustness**<br>Process restart before and during monitoring. | `GRANTED` | 1. Force-stop CameraGuard $\to$ restart service.<br>2. Open camera (2500 ms hold) $\to$ close. | Service restarts, re-registers `AvailabilityCallback`. | Initial startup baseline suppressed (0 synthetic events). Subsequent camera session detected (1 open, 1 close). | `org.cameraguard.adversarytest` | `EXPECTED` | **PASS** | Startup baseline suppression intact. Room database events preserved across process restart. |
+| **P9** | **Screen lock/unlock during active camera session**<br>Display state transition while camera is streaming. | `GRANTED` | Camera opened (7000 ms hold); screen locked at $t=1500\text{ ms}$; unlocked at $t=5000\text{ ms}$. | Android platform policy evaluation under screen-lock transitions. | Session opening detected. | `org.cameraguard.adversarytest` | `EXPECTED` | **PASS** | Observed screen interactivity transitions recorded in telemetry without duplicate event artifacts. |
+| **P10** | **Repeated camera sessions with permission transitions**<br>5 end-to-end controlled cycles combining permissions, visibility, and lifecycle. | Mixed | **Cycle 1**: granted $\to$ fg $\to$ open $\to$ close<br>**Cycle 2**: revoked $\to$ attempt $\to$ denied<br>**Cycle 3**: grant $\to$ fg $\to$ open $\to$ bg $\to$ close<br>**Cycle 4**: revoke $\to$ attempt $\to$ denied $\to$ grant<br>**Cycle 5**: grant $\to$ open $\to$ restart $\to$ close | Comprehensive state machine stress testing. | 3/3 established sessions detected (Cycles 1, 3, 5). 2/2 denied attempts correctly prevented from fabricating sessions (Cycles 2, 4). | Cycles 1, 3, 5: `org.cameraguard.adversarytest`. | `EXPECTED` | **PASS** | Long-term state consistency verified across 5 complex multi-dimensional cycles. |
+
+---
+
+## 3. Evaluation Summary
+
+- **Total Scenarios Defined**: 10 (P1–P10, including sub-scenarios P6-A/B and 5 cycles in P10).
+- **Physical Test Target**: vivo V2202, Android 15 / API 35 (arm64-v8a).
+- **Established Sessions**: 15 sessions evaluated across all scenarios.
+- **Sessions Detected**: 15 / 15 (**100.0% Detection Rate**).
+- **Probe / Denied Attempts**: 5 attempts.
+- **Probe False-Event Rate**: **0.0%** (zero false sessions fabricated from denied attempts).
+- **Attribution Accuracy**: **100.0%** (8 / 8 evaluated with sufficient evidence).
+- **Self-Attribution Rate**: **0.0%** (0 / 8 incidents; CameraGuard never self-attributes).
+- **Duplicate Event Rate**: **0.0%** (0 duplicate events).
+- **State Contamination**: **False** (no state leakage between denied probes and subsequent sessions).

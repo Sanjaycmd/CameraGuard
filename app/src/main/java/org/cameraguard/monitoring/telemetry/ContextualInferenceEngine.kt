@@ -185,6 +185,8 @@ class ContextualInferenceEngine(
 
         val nonOwnCandidates = mutableListOf<CandidateActivity>()
         var activityCount = 0
+        var topResumedPackage: String? = null
+        var topResumedTimestamp: Long = 0L
 
         if (customEventProvider != null) {
             val events = customEventProvider.queryEvents(startTime, endTime)
@@ -192,6 +194,10 @@ class ContextualInferenceEngine(
                 if (rec.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     if (rec.timestamp in startTime..eventTimestamp) {
                         activityCount++
+                        if (rec.timestamp >= topResumedTimestamp) {
+                            topResumedTimestamp = rec.timestamp
+                            topResumedPackage = rec.packageName
+                        }
                         if (rec.packageName != ownPackageName) {
                             nonOwnCandidates.add(CandidateActivity(rec.packageName, rec.timestamp))
                         }
@@ -228,6 +234,10 @@ class ContextualInferenceEngine(
                 if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     if (event.timeStamp in startTime..eventTimestamp) {
                         activityCount++
+                        if (event.timeStamp >= topResumedTimestamp) {
+                            topResumedTimestamp = event.timeStamp
+                            topResumedPackage = event.packageName
+                        }
                         if (event.packageName != ownPackageName) {
                             nonOwnCandidates.add(CandidateActivity(event.packageName, event.timeStamp))
                         }
@@ -251,26 +261,72 @@ class ContextualInferenceEngine(
         val sortedCandidates = nonOwnCandidates.sortedBy { it.timestamp }
         val newestCandidate = sortedCandidates.last()
 
+        val transitionCutoff = eventTimestamp - TRANSITION_LOOKBACK_WINDOW_MS
+        val cameraCapableTransition = sortedCandidates.reversed().firstOrNull { candidate ->
+            candidate.timestamp >= transitionCutoff &&
+                (customPermissionChecker?.invoke(candidate.packageName) ?: hasCameraPermission(candidate.packageName)) != false
+        }
+
+        // Case A: Host monitor (CameraGuard) is the top resumed activity
+        if (topResumedPackage == ownPackageName) {
+            if (cameraCapableTransition != null) {
+                val perm = customPermissionChecker?.invoke(cameraCapableTransition.packageName)
+                    ?: hasCameraPermission(cameraCapableTransition.packageName)
+                val minDelta = eventTimestamp - cameraCapableTransition.timestamp
+                val confidence = when {
+                    minDelta <= 500L -> InferenceConfidence.HIGH
+                    minDelta <= 2000L -> InferenceConfidence.MEDIUM
+                    else -> InferenceConfidence.LOW
+                }
+                return InferredPackageContext(
+                    packageName = cameraCapableTransition.packageName,
+                    confidence = confidence,
+                    method = InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED,
+                    hasCameraPermission = perm,
+                    deltaFromEventMs = minDelta,
+                    recentActivityCount30s = activityCount
+                )
+            } else {
+                // CameraGuard is foreground, and no camera-capable app transitioned recently.
+                // The caller is an unattributed background component. Retain honest UNKNOWN.
+                return InferredPackageContext(
+                    packageName = null,
+                    confidence = InferenceConfidence.NONE,
+                    method = InferenceMethod.NONE,
+                    hasCameraPermission = null,
+                    deltaFromEventMs = null,
+                    recentActivityCount30s = activityCount
+                )
+            }
+        }
+
+        // Case B: Another application was the newest resumed activity
         val newestPerm = customPermissionChecker?.invoke(newestCandidate.packageName)
             ?: hasCameraPermission(newestCandidate.packageName)
 
-        // If the newest foreground app lacks camera permission (e.g. user switched to launcher, calculator, or settings),
-        // check if a camera-capable app transitioned within the transition lookback window (5000ms).
         val selectedCandidate: CandidateActivity
         val selectedPerm: Boolean?
+
         if (newestPerm == false) {
-            val transitionCutoff = eventTimestamp - TRANSITION_LOOKBACK_WINDOW_MS
-            val cameraCapableTransition = sortedCandidates.reversed().firstOrNull { candidate ->
-                candidate.timestamp >= transitionCutoff &&
-                    (customPermissionChecker?.invoke(candidate.packageName) ?: hasCameraPermission(candidate.packageName)) != false
-            }
             if (cameraCapableTransition != null) {
                 selectedCandidate = cameraCapableTransition
                 selectedPerm = customPermissionChecker?.invoke(cameraCapableTransition.packageName)
                     ?: hasCameraPermission(cameraCapableTransition.packageName)
-            } else {
+            } else if (newestCandidate.timestamp >= transitionCutoff) {
+                // Unprivileged candidate within transition lookback window (e.g. unprivileged probe attempt)
                 selectedCandidate = newestCandidate
                 selectedPerm = newestPerm
+            } else {
+                // Candidate lacks camera permission and is outside transition window (e.g. home launcher from 15s ago).
+                // Do not falsely attribute an innocent background app; retain honest UNKNOWN.
+                return InferredPackageContext(
+                    packageName = null,
+                    confidence = InferenceConfidence.NONE,
+                    method = InferenceMethod.NONE,
+                    hasCameraPermission = null,
+                    deltaFromEventMs = null,
+                    recentActivityCount30s = activityCount
+                )
             }
         } else {
             selectedCandidate = newestCandidate
