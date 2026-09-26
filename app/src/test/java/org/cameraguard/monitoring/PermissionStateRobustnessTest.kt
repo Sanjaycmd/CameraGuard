@@ -291,16 +291,20 @@ class PermissionStateRobustnessTest {
     fun testBackgroundCallerAttribution_followsPhase53A1Behavior() {
         val backgroundCaller = "org.cameraguard.adversarytest"
         val unrelatedForeground = "com.android.calculator2"
+        // Capture a stable snapshot: baseTimestamp is a dynamic getter that calls
+        // System.currentTimeMillis() on every access. Using it multiple times causes
+        // minDelta to drift above the 2000ms MEDIUM/LOW confidence boundary.
+        val t = baseTimestamp
 
         val events = listOf(
             UsageEventRecord(
                 packageName = backgroundCaller,
-                timestamp = baseTimestamp - 2_000L,
+                timestamp = t - 2_000L,
                 eventType = UsageEvents.Event.ACTIVITY_RESUMED
             ),
             UsageEventRecord(
                 packageName = unrelatedForeground,
-                timestamp = baseTimestamp - 150L,
+                timestamp = t - 150L,
                 eventType = UsageEvents.Event.ACTIVITY_RESUMED
             )
         )
@@ -309,10 +313,11 @@ class PermissionStateRobustnessTest {
             customPermissionChecker = { it == backgroundCaller } // Calculator lacks camera permission
         )
 
-        val result = engine.inferForegroundPackage(baseTimestamp)
+        val result = engine.inferForegroundPackage(t)
 
         // When foreground app lacks camera permission, the transitioning camera-capable app is attributed
         assertEquals(backgroundCaller, result.packageName)
+        // minDelta = t - (t - 2000) = exactly 2000ms → MEDIUM confidence threshold (≤2000ms)
         assertEquals(InferenceConfidence.MEDIUM, result.confidence)
         assertEquals(true, result.hasCameraPermission)
     }
