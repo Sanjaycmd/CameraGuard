@@ -32,3 +32,4 @@ plugins {
 rootProject.name = "CameraGuard"
 include(":app")
 include(":camera-test-harness")
+include(":adversary-test-app")
