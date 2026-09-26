@@ -43,12 +43,14 @@ class ContextualInferenceEngine(
     private val context: Context? = null,
     var correlationWindowMs: Long = DEFAULT_LOOKBACK_WINDOW_MS,
     private val customEventProvider: UsageEventProvider? = null,
-    private val customPermissionChecker: ((String) -> Boolean?)? = null
+    private val customPermissionChecker: ((String) -> Boolean?)? = null,
+    val ownPackageName: String = context?.packageName ?: "org.cameraguard"
 ) {
 
     companion object {
         private const val TAG = "CameraGuard"
         const val DEFAULT_LOOKBACK_WINDOW_MS = 30000L
+        const val TRANSITION_LOOKBACK_WINDOW_MS = 5000L
 
         private val KNOWN_CAMERA_PACKAGES = setOf(
             "com.android.camera",
@@ -181,8 +183,7 @@ class ContextualInferenceEngine(
         val startTime = (eventTimestamp - correlationWindowMs).coerceAtLeast(0)
         val endTime = eventTimestamp
 
-        var latestPackage: String? = null
-        var latestEventTimestamp: Long = -1L
+        val nonOwnCandidates = mutableListOf<CandidateActivity>()
         var activityCount = 0
 
         if (customEventProvider != null) {
@@ -191,9 +192,8 @@ class ContextualInferenceEngine(
                 if (rec.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     if (rec.timestamp in startTime..eventTimestamp) {
                         activityCount++
-                        if (rec.timestamp >= latestEventTimestamp) {
-                            latestEventTimestamp = rec.timestamp
-                            latestPackage = rec.packageName
+                        if (rec.packageName != ownPackageName) {
+                            nonOwnCandidates.add(CandidateActivity(rec.packageName, rec.timestamp))
                         }
                     }
                 }
@@ -228,16 +228,15 @@ class ContextualInferenceEngine(
                 if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
                     if (event.timeStamp in startTime..eventTimestamp) {
                         activityCount++
-                        if (event.timeStamp >= latestEventTimestamp) {
-                            latestEventTimestamp = event.timeStamp
-                            latestPackage = event.packageName
+                        if (event.packageName != ownPackageName) {
+                            nonOwnCandidates.add(CandidateActivity(event.packageName, event.timeStamp))
                         }
                     }
                 }
             }
         }
 
-        if (latestPackage == null || latestEventTimestamp < 0) {
+        if (nonOwnCandidates.isEmpty()) {
             return InferredPackageContext(
                 packageName = null,
                 confidence = InferenceConfidence.NONE,
@@ -248,10 +247,37 @@ class ContextualInferenceEngine(
             )
         }
 
-        val minDelta = eventTimestamp - latestEventTimestamp
-        val hasPermission = customPermissionChecker?.invoke(latestPackage)
-            ?: hasCameraPermission(latestPackage)
+        // Sort candidates chronologically
+        val sortedCandidates = nonOwnCandidates.sortedBy { it.timestamp }
+        val newestCandidate = sortedCandidates.last()
 
+        val newestPerm = customPermissionChecker?.invoke(newestCandidate.packageName)
+            ?: hasCameraPermission(newestCandidate.packageName)
+
+        // If the newest foreground app lacks camera permission (e.g. user switched to launcher, calculator, or settings),
+        // check if a camera-capable app transitioned within the transition lookback window (5000ms).
+        val selectedCandidate: CandidateActivity
+        val selectedPerm: Boolean?
+        if (newestPerm == false) {
+            val transitionCutoff = eventTimestamp - TRANSITION_LOOKBACK_WINDOW_MS
+            val cameraCapableTransition = sortedCandidates.reversed().firstOrNull { candidate ->
+                candidate.timestamp >= transitionCutoff &&
+                    (customPermissionChecker?.invoke(candidate.packageName) ?: hasCameraPermission(candidate.packageName)) != false
+            }
+            if (cameraCapableTransition != null) {
+                selectedCandidate = cameraCapableTransition
+                selectedPerm = customPermissionChecker?.invoke(cameraCapableTransition.packageName)
+                    ?: hasCameraPermission(cameraCapableTransition.packageName)
+            } else {
+                selectedCandidate = newestCandidate
+                selectedPerm = newestPerm
+            }
+        } else {
+            selectedCandidate = newestCandidate
+            selectedPerm = newestPerm
+        }
+
+        val minDelta = eventTimestamp - selectedCandidate.timestamp
         val confidence = when {
             minDelta <= 500L -> InferenceConfidence.HIGH
             minDelta <= 2000L -> InferenceConfidence.MEDIUM
@@ -259,14 +285,19 @@ class ContextualInferenceEngine(
         }
 
         return InferredPackageContext(
-            packageName = latestPackage,
+            packageName = selectedCandidate.packageName,
             confidence = confidence,
             method = InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED,
-            hasCameraPermission = hasPermission,
+            hasCameraPermission = selectedPerm,
             deltaFromEventMs = minDelta,
             recentActivityCount30s = activityCount
         )
     }
+
+    private data class CandidateActivity(
+        val packageName: String,
+        val timestamp: Long
+    )
 
     private fun hasCameraPermission(packageName: String): Boolean? {
         val pm = packageManager ?: return null

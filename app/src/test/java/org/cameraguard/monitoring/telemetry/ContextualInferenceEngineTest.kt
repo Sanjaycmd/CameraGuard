@@ -353,4 +353,186 @@ class ContextualInferenceEngineTest {
         assertFalse(engine.isCameraApplication("com.instagram.android", "com.instagram.mainactivity.MainActivity"))
         assertFalse(engine.isCameraApplication("org.telegram.messenger", "org.telegram.ui.LaunchActivity"))
     }
+
+    /**
+     * Requirement 1 (Part 8): foreground candidate attribution
+     */
+    @Test
+    fun testForegroundCandidateAttribution() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "com.google.android.GoogleCamera",
+                timestamp = baseCameraTime - 200L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { true }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        assertEquals("com.google.android.GoogleCamera", result.packageName)
+        assertEquals(InferenceConfidence.HIGH, result.confidence)
+        assertEquals(InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED, result.method)
+        assertEquals(true, result.hasCameraPermission)
+        assertEquals(200L, result.deltaFromEventMs)
+    }
+
+    /**
+     * Requirement 2 (Part 8): background camera caller with prior transitioning camera app
+     */
+    @Test
+    fun testBackgroundCameraCaller_attributesTransitioningCameraCapableApp() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "org.cameraguard.adversarytest",
+                timestamp = baseCameraTime - 1_500L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            ),
+            UsageEventRecord(
+                packageName = "com.android.calculator2",
+                timestamp = baseCameraTime - 200L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { pkg -> pkg == "org.cameraguard.adversarytest" }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        // When foreground app (calculator) has no camera permission, the transitioning camera-capable app is attributed
+        assertEquals("org.cameraguard.adversarytest", result.packageName)
+        assertEquals(InferenceConfidence.MEDIUM, result.confidence)
+        assertEquals(1_500L, result.deltaFromEventMs)
+        assertEquals(true, result.hasCameraPermission)
+    }
+
+    /**
+     * Requirement 3 (Part 8): CameraGuard foreground while another app owns camera
+     */
+    @Test
+    fun testCameraGuardForeground_neverSelfAttributed() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "org.cameraguard.adversarytest",
+                timestamp = baseCameraTime - 1_200L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            ),
+            UsageEventRecord(
+                packageName = "org.cameraguard",
+                timestamp = baseCameraTime - 100L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { pkg -> pkg == "org.cameraguard.adversarytest" }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        // Must attribute the actual caller, never self-attribute to org.cameraguard
+        assertEquals("org.cameraguard.adversarytest", result.packageName)
+        assertEquals(InferenceConfidence.MEDIUM, result.confidence)
+        assertEquals(1_200L, result.deltaFromEventMs)
+    }
+
+    /**
+     * Requirement 4 (Part 8): camera permission denial foreground candidate
+     */
+    @Test
+    fun testCameraPermissionDenial_candidateLacksPermission() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "com.unprivileged.app",
+                timestamp = baseCameraTime - 300L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { false }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        assertEquals("com.unprivileged.app", result.packageName)
+        assertEquals(InferenceConfidence.HIGH, result.confidence)
+        assertEquals(false, result.hasCameraPermission)
+    }
+
+    /**
+     * Requirement 5 (Part 8): transient/probe transition attribution
+     */
+    @Test
+    fun testTransientProbeTransition_unprivilegedAppAttributedForPolicyEvaluation() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "org.cameraguard.adversarytest",
+                timestamp = baseCameraTime - 50L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { true }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        assertEquals("org.cameraguard.adversarytest", result.packageName)
+        assertEquals(InferenceConfidence.HIGH, result.confidence)
+        assertEquals(50L, result.deltaFromEventMs)
+    }
+
+    /**
+     * Requirement 6 (Part 8): unknown attribution when no camera-capable app is present
+     */
+    @Test
+    fun testUnknownAttribution_whenOnlyHostMonitorInEvents() {
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "org.cameraguard",
+                timestamp = baseCameraTime - 150L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { false }
+        )
+
+        val result = engine.inferForegroundPackage(baseCameraTime)
+
+        assertNull(result.packageName)
+        assertEquals(InferenceConfidence.NONE, result.confidence)
+        assertEquals(InferenceMethod.NONE, result.method)
+        assertNull(result.hasCameraPermission)
+        assertNull(result.deltaFromEventMs)
+        assertEquals(1, result.recentActivityCount30s)
+    }
+
+    /**
+     * Requirement 7 (Part 8): lifecycle closure without caller attribution
+     */
+    @Test
+    fun testLifecycleClosure_unattributedSessionRemainsNullOnClosure() {
+        val tracker = org.cameraguard.monitoring.CameraAvailabilityTracker()
+        tracker.availabilityCallback.onCameraAvailable("0") // baseline
+        tracker.availabilityCallback.onCameraUnavailable("0") // un-attributed opening (no UsageStats provider)
+        val openingOwner = tracker.getActiveSessionOwner("0")
+        assertNull("Opening without candidate should not store session owner", openingOwner)
+
+        var closureEvent: org.cameraguard.data.model.CameraAccessEvent? = null
+        tracker.onEventDetected = { event -> closureEvent = event }
+
+        tracker.availabilityCallback.onCameraAvailable("0") // closure
+        assertNotNull(closureEvent)
+        assertNull("Closure without opening owner must have null package name", closureEvent?.inferredPackageName)
+        assertEquals(InferenceConfidence.NONE, closureEvent?.packageInferenceConfidence)
+    }
 }
