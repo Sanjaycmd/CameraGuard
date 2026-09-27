@@ -1,3 +1,13 @@
 <resources>
-    <string name="app_name">AdversaryTestApp</string>
+    <string name="app_name">CameraGuard Adversarial Camera Test</string>
+    <string name="ui_title">CameraGuard Adversarial Test</string>
+    <string name="ui_purpose">Independent camera activity generator for CameraGuard evaluation</string>
+    <string name="status_closed">CAMERA CLOSED</string>
+    <string name="status_active">CAMERA ACTIVE</string>
+    <string name="status_complete">CAMERA TEST COMPLETE</string>
+    <string name="status_no_camera">NO CAMERA AVAILABLE</string>
+    <string name="btn_start">START CAMERA TEST</string>
+    <string name="btn_stop">STOP CAMERA TEST</string>
+    <string name="permission_required">Camera permission is required for the independent camera test.</string>
+    <string name="btn_grant_perm">GRANT CAMERA PERMISSION</string>
 </resources>
