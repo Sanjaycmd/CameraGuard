@@ -326,7 +326,7 @@ CameraGuard is licensed under the [MIT License](LICENSE).
 
 ```bibtex
 @misc{cameraguard2026,
-  author = {CameraGuard Research Team},
+  author = {Sanjay V N},
   title = {CameraGuard: Context-Aware Software-Only Camera Privacy Monitoring Framework for Android},
   year = {2026},
   publisher = {GitHub},
