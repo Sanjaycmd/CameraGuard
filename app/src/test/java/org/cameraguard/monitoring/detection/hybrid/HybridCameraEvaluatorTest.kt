@@ -221,7 +221,7 @@ class HybridCameraEvaluatorTest {
         assertEquals("UNKNOWN", result.deterministicResult)
         assertEquals("AMBIGUOUS", result.mlResult)
         assertTrue(result.mlInvoked)
-        assertEquals(AccessClassification.UNEXPECTED, result.finalClassification)
+        assertEquals(AccessClassification.AMBIGUOUS, result.finalClassification)
         assertEquals(TreeClassification.AMBIGUOUS, result.treeClassification)
     }
 

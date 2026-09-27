@@ -535,4 +535,79 @@ class ContextualInferenceEngineTest {
         assertNull("Closure without opening owner must have null package name", closureEvent?.inferredPackageName)
         assertEquals(InferenceConfidence.NONE, closureEvent?.packageInferenceConfidence)
     }
+
+    /**
+     * Requirement 8: Adaptive Transition Corroboration detects camera app resumed within lookahead window
+     */
+    @Test
+    fun testCorroborateTransition_detectsCameraResumedInLookaheadWindow() {
+        val cameraPackage = "com.android.camera"
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "com.android.launcher3",
+                timestamp = baseCameraTime - 500L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            ),
+            UsageEventRecord(
+                packageName = cameraPackage,
+                timestamp = baseCameraTime + 200L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { it == cameraPackage }
+        )
+
+        val corroborated = engine.corroborateTransition(baseCameraTime, 500L)
+        assertNotNull("Should corroborate camera app resumed in window", corroborated)
+        assertEquals(cameraPackage, corroborated?.packageName)
+        assertEquals(InferenceConfidence.HIGH, corroborated?.confidence)
+        assertEquals(InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED, corroborated?.method)
+        assertEquals(true, corroborated?.hasCameraPermission)
+        assertEquals(200L, corroborated?.deltaFromEventMs)
+    }
+
+    @Test
+    fun testCorroborateTransition_returnsNullWhenNoCameraAppInWindow() {
+        val nonCameraApp = "com.example.calculator"
+        val events = listOf(
+            UsageEventRecord(
+                packageName = "com.android.launcher3",
+                timestamp = baseCameraTime - 500L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            ),
+            UsageEventRecord(
+                packageName = nonCameraApp,
+                timestamp = baseCameraTime + 200L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { false }
+        )
+
+        val corroborated = engine.corroborateTransition(baseCameraTime, 500L)
+        assertNull("Should return null when no camera-capable app resumed in window", corroborated)
+    }
+
+    @Test
+    fun testCorroborateTransition_ignoresResumptionAfterWindow() {
+        val cameraPackage = "com.android.camera"
+        val events = listOf(
+            UsageEventRecord(
+                packageName = cameraPackage,
+                timestamp = baseCameraTime + 600L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> events },
+            customPermissionChecker = { it == cameraPackage }
+        )
+
+        val corroborated = engine.corroborateTransition(baseCameraTime, 500L)
+        assertNull("Should return null when camera app resumes after lookahead window", corroborated)
+    }
 }

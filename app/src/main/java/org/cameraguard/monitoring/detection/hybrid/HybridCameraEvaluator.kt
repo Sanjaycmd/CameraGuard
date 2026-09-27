@@ -94,8 +94,8 @@ class HybridCameraEvaluator(
 
         val (finalClassification, hybridExplanation) = when (treeResult) {
             TreeClassification.AMBIGUOUS -> {
-                AccessClassification.UNEXPECTED to
-                    "Hybrid ML Tier-2 classified event as AMBIGUOUS (suspicious/unattributed access). Deterministic rule was UNKNOWN: ${tier1Result.explanation}"
+                AccessClassification.AMBIGUOUS to
+                    "Hybrid ML Tier-2 classified event as AMBIGUOUS (inconclusive attribution/rapid transition). Deterministic rule was UNKNOWN: ${tier1Result.explanation}"
             }
             TreeClassification.LEGITIMATE -> {
                 AccessClassification.EXPECTED to

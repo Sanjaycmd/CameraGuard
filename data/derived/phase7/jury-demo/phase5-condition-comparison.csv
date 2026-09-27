@@ -1,0 +1,9 @@
+Trial ID,Type,Scenario,Description,Camera Acquired,Ground Truth,CameraGuard Detected,Privacy Indicator,Screen State,Latency (ms),Attributed Package,Confidence,Classification,Tier,Notification,Persisted in History
+CTRL-1,CONTROL,A1,"Foreground intentional control baseline (Screen ON, interactive)",YES,SUCCESS,YES,VISIBLE,SCREEN_ON_UNLOCKED,16,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+CTRL-2,CONTROL,A1,"Foreground intentional control baseline (Screen ON, interactive)",YES,SUCCESS,YES,VISIBLE,SCREEN_ON_UNLOCKED,21,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+CTRL-3,CONTROL,A1,"Foreground intentional control baseline (Screen ON, interactive)",YES,SUCCESS,YES,VISIBLE,SCREEN_ON_UNLOCKED,22,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+REPRO-A4-1,REPRODUCTION,A4,Service / background component attempt (Declared Camera FGS in background),YES,SUCCESS,YES,VISIBLE,SCREEN_ON_UNLOCKED,6,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+REPRO-A4-2,REPRODUCTION,A4,Service / background component attempt (Declared Camera FGS in background),NO,UNKNOWN,YES,NOT_OBSERVED,SCREEN_ON_UNLOCKED,8,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+REPRO-A4-3,REPRODUCTION,A4,Service / background component attempt (Declared Camera FGS in background),YES,SUCCESS,YES,VISIBLE,SCREEN_ON_UNLOCKED,9,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+REPRO-A3-1,REPRODUCTION_AUX,A3,Access immediately after leaving foreground (Transitional grace window),NO,UNKNOWN,YES,NOT_OBSERVED,SCREEN_ON_UNLOCKED,8,org.cameraguard.adversarytest,MEDIUM,EXPECTED,TIER_2_ML,YES,YES
+REPRO-A2-1,REPRODUCTION_AUX,A2,Background camera-access attempt without FGS (Platform blocked probe),NO,UNKNOWN,YES,NOT_OBSERVED,SCREEN_ON_UNLOCKED,12,org.cameraguard.adversarytest,LOW,UNEXPECTED,TIER_2_ML,YES,YES

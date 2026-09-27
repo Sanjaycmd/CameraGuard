@@ -545,8 +545,8 @@ class ContextualClassificationRobustnessTest {
         assertEquals("TIER_2_ML", result.tierUsed)
         assertEquals(TreeClassification.AMBIGUOUS, result.treeClassification)
         assertEquals(
-            "AMBIGUOUS tree result maps to UNEXPECTED",
-            AccessClassification.UNEXPECTED,
+            "AMBIGUOUS tree result maps to AMBIGUOUS",
+            AccessClassification.AMBIGUOUS,
             result.finalClassification
         )
     }
@@ -627,8 +627,8 @@ class ContextualClassificationRobustnessTest {
         assertTrue("Tier 2 must be invoked for UNKNOWN context", result.mlInvoked)
         assertEquals(TreeClassification.AMBIGUOUS, result.treeClassification)
         assertEquals(
-            "Suspicious background with high activity count must yield UNEXPECTED",
-            AccessClassification.UNEXPECTED,
+            "Inconclusive context with high activity count must yield AMBIGUOUS",
+            AccessClassification.AMBIGUOUS,
             result.finalClassification
         )
     }

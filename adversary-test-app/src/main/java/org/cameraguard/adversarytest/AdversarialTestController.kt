@@ -22,7 +22,9 @@ class AdversarialTestController(
         ACTIVE,
         COMPLETE,
         NO_CAMERA_AVAILABLE,
-        ERROR
+        ERROR,
+        A2_RUNNING,
+        A2_BLOCKED
     }
 
     companion object {
@@ -45,13 +47,17 @@ class AdversarialTestController(
     var lastErrorMessage: String? = null
         private set
 
+    var lastA2Result: A2ExecutionResult? = null
+        private set
+
     private var tickerJob: Job? = null
     var onStateChanged: ((TestState) -> Unit)? = null
     var onTick: ((elapsedSec: Int, remainingSec: Int) -> Unit)? = null
     var onCloseCamera: (() -> Unit)? = null
+    var onA2Completed: ((A2ExecutionResult) -> Unit)? = null
 
     fun selectDuration(seconds: Int) {
-        if (currentState == TestState.ACTIVE) return // Cannot change during active capture
+        if (currentState == TestState.ACTIVE || currentState == TestState.A2_RUNNING) return // Cannot change during active capture
         if (seconds in VALID_DURATIONS_SECONDS) {
             selectedDurationSeconds = seconds
         }
@@ -77,7 +83,7 @@ class AdversarialTestController(
         cameraId: String?,
         openCameraAction: (cameraId: String, onOpened: () -> Unit, onError: (String) -> Unit) -> Unit
     ) {
-        if (currentState == TestState.ACTIVE) return
+        if (currentState == TestState.ACTIVE || currentState == TestState.A2_RUNNING) return
 
         if (cameraId.isNullOrEmpty()) {
             transitionTo(TestState.NO_CAMERA_AVAILABLE)
@@ -96,6 +102,36 @@ class AdversarialTestController(
             lastErrorMessage = errorMsg
             transitionTo(TestState.ERROR)
         })
+    }
+
+    /**
+     * Initiates the A2 blocked background camera test scenario.
+     * Android platform policy restricts background camera access without a Foreground Service.
+     */
+    fun startA2Test(
+        cameraId: String?,
+        executeA2Action: (cameraId: String, onComplete: (A2ExecutionResult) -> Unit) -> Unit
+    ) {
+        if (currentState == TestState.ACTIVE || currentState == TestState.A2_RUNNING) return
+
+        if (cameraId.isNullOrEmpty()) {
+            transitionTo(TestState.NO_CAMERA_AVAILABLE)
+            return
+        }
+
+        activeCameraId = cameraId
+        lastErrorMessage = null
+        transitionTo(TestState.A2_RUNNING)
+
+        executeA2Action(cameraId) { result ->
+            lastA2Result = result
+            if (!result.hardwareAcquired) {
+                transitionTo(TestState.A2_BLOCKED)
+            } else {
+                transitionTo(TestState.COMPLETE)
+            }
+            onA2Completed?.invoke(result)
+        }
     }
 
     private fun startCountdown() {
@@ -150,4 +186,17 @@ class AdversarialTestController(
 data class CameraInfoDescriptor(
     val id: String,
     val isRearFacing: Boolean
+)
+
+/**
+ * Factual outcome report for an A2 background camera attempt under Android platform security policies.
+ */
+data class A2ExecutionResult(
+    val attempted: Boolean,
+    val backgrounded: Boolean,
+    val foregroundServiceActive: Boolean,
+    val platformResult: String,
+    val hardwareAcquired: Boolean,
+    val framesCaptured: Int,
+    val detail: String
 )

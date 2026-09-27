@@ -51,6 +51,7 @@ class ContextualInferenceEngine(
         private const val TAG = "CameraGuard"
         const val DEFAULT_LOOKBACK_WINDOW_MS = 30000L
         const val TRANSITION_LOOKBACK_WINDOW_MS = 5000L
+        const val DEFAULT_TRANSITION_CORROBORATION_WINDOW_MS = 500L
 
         private val KNOWN_CAMERA_PACKAGES = setOf(
             "com.android.camera",
@@ -347,6 +348,82 @@ class ContextualInferenceEngine(
             hasCameraPermission = selectedPerm,
             deltaFromEventMs = minDelta,
             recentActivityCount30s = activityCount
+        )
+    }
+
+    /**
+     * Checks if a camera-capable application resumed during the transition window [eventTimestamp, eventTimestamp + lookaheadWindowMs].
+     *
+     * This addresses the Android platform race condition where Camera HAL emits onCameraUnavailable
+     * 300-600ms before ActivityTaskManager commits ACTIVITY_RESUMED in UsageStats.
+     *
+     * Returns an updated InferredPackageContext if a camera-capable app resumed, or null if no
+     * camera application resumed during the window.
+     */
+    fun corroborateTransition(
+        eventTimestamp: Long,
+        lookaheadWindowMs: Long = DEFAULT_TRANSITION_CORROBORATION_WINDOW_MS
+    ): InferredPackageContext? {
+        if (!hasUsageAccessPermission()) return null
+
+        val startTime = eventTimestamp
+        val endTime = eventTimestamp + lookaheadWindowMs
+
+        var latestCandidate: UsageEventRecord? = null
+        var latestTimestamp = -1L
+
+        if (customEventProvider != null) {
+            val events = customEventProvider.queryEvents(startTime, endTime)
+            for (rec in events) {
+                if (rec.eventType == UsageEvents.Event.ACTIVITY_RESUMED && rec.packageName != ownPackageName) {
+                    val perm = customPermissionChecker?.invoke(rec.packageName) ?: hasCameraPermission(rec.packageName)
+                    val isCam = isCameraApplication(rec.packageName, rec.className)
+                    if (perm == true || isCam) {
+                        if (rec.timestamp in startTime..endTime && rec.timestamp >= latestTimestamp) {
+                            latestTimestamp = rec.timestamp
+                            latestCandidate = rec
+                        }
+                    }
+                }
+            }
+        } else {
+            val statsManager = usageStatsManager ?: return null
+            val usageEvents = try {
+                statsManager.queryEvents(startTime, endTime)
+            } catch (_: Exception) {
+                null
+            } ?: return null
+
+            val event = UsageEvents.Event()
+            while (usageEvents.hasNextEvent()) {
+                usageEvents.getNextEvent(event)
+                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED && event.packageName != ownPackageName) {
+                    val perm = customPermissionChecker?.invoke(event.packageName) ?: hasCameraPermission(event.packageName)
+                    val isCam = isCameraApplication(event.packageName, event.className)
+                    if (perm == true || isCam) {
+                        if (event.timeStamp in startTime..endTime && event.timeStamp >= latestTimestamp) {
+                            latestTimestamp = event.timeStamp
+                            latestCandidate = UsageEventRecord(
+                                packageName = event.packageName,
+                                timestamp = event.timeStamp,
+                                className = event.className
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val candidate = latestCandidate ?: return null
+        val perm = customPermissionChecker?.invoke(candidate.packageName) ?: hasCameraPermission(candidate.packageName)
+        val minDelta = abs(candidate.timestamp - eventTimestamp)
+
+        return InferredPackageContext(
+            packageName = candidate.packageName,
+            confidence = InferenceConfidence.HIGH,
+            method = InferenceMethod.USAGE_STATS_ACTIVITY_RESUMED,
+            hasCameraPermission = perm ?: true,
+            deltaFromEventMs = minDelta
         )
     }
 

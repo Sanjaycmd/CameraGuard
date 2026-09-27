@@ -39,7 +39,11 @@ class CameraAvailabilityTracker(
         private const val TAG = "CameraGuard"
         const val DEDUPLICATION_WINDOW_MS = 3000L
         const val FALLBACK_POLL_INTERVAL_MS = 1000L
+        const val DEFAULT_CORROBORATION_DELAY_MS = 500L
     }
+
+    @Volatile
+    var transitionCorroborationDelayMs: Long = if (context != null) DEFAULT_CORROBORATION_DELAY_MS else 0L
 
     private val cameraManager: CameraManager? =
         context?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
@@ -338,9 +342,9 @@ class CameraAvailabilityTracker(
             ?: ScreenInteractivityState.SCREEN_ON_UNLOCKED
 
         // 2. Inferred application context with session-owner attribution on closure
-        val inferredContext = if (rawType == RawCameraEventType.CAMERA_BECAME_AVAILABLE) {
+        if (rawType == RawCameraEventType.CAMERA_BECAME_AVAILABLE) {
             val sessionOwner = activeCameraSessionOwners.remove(cameraId)
-            if (sessionOwner != null && sessionOwner.packageName != null) {
+            val inferredContext = if (sessionOwner != null && sessionOwner.packageName != null) {
                 logD("Attributing closure of cameraId=$cameraId to active session owner: ${sessionOwner.packageName}")
                 sessionOwner.copy(deltaFromEventMs = 0L)
             } else {
@@ -353,28 +357,87 @@ class CameraAvailabilityTracker(
                     deltaFromEventMs = null
                 )
             }
-        } else {
-            val inferred = inferenceEngine?.inferForegroundPackage(startCaptureTime)
-                ?: InferredPackageContext(
-                    packageName = null,
-                    confidence = InferenceConfidence.NONE,
-                    method = InferenceMethod.NONE,
-                    hasCameraPermission = null,
-                    deltaFromEventMs = null
-                )
-            if (inferred.packageName != null) {
-                activeCameraSessionOwners[cameraId] = inferred
-                logD("Stored active session owner for cameraId=$cameraId: ${inferred.packageName}")
-            } else {
-                activeCameraSessionOwners.remove(cameraId)
-                logD("No package inferred for cameraId=$cameraId; cleared session owner")
-            }
-            lastAvailabilityTransitionTime = startCaptureTime
-            lastAvailabilityPackage = inferred.packageName
-            inferred
+            processEvaluatedCameraEvent(
+                cameraId = cameraId,
+                rawType = rawType,
+                eventTimestamp = startCaptureTime,
+                screenState = screenState,
+                inferredContext = inferredContext
+            )
+            return
         }
 
-        // 3. Classification via Hybrid Evaluator
+        // RawCameraEventType.CAMERA_BECAME_UNAVAILABLE
+        val initialInferred = inferenceEngine?.inferForegroundPackage(startCaptureTime)
+            ?: InferredPackageContext(
+                packageName = null,
+                confidence = InferenceConfidence.NONE,
+                method = InferenceMethod.NONE,
+                hasCameraPermission = null,
+                deltaFromEventMs = null
+            )
+
+        if (initialInferred.packageName != null) {
+            activeCameraSessionOwners[cameraId] = initialInferred
+            logD("Stored provisional active session owner for cameraId=$cameraId: ${initialInferred.packageName}")
+        } else {
+            activeCameraSessionOwners.remove(cameraId)
+            logD("No package inferred for cameraId=$cameraId; cleared session owner")
+        }
+        lastAvailabilityTransitionTime = startCaptureTime
+        lastAvailabilityPackage = initialInferred.packageName
+
+        // Adaptive Transition Corroboration Check:
+        // Screen must be active (OFF or LOCKED triggers immediate 0ms alert).
+        // Candidate must lack confirmed camera permission or have LOW/NONE confidence.
+        val needsCorroboration = screenState == ScreenInteractivityState.SCREEN_ON_UNLOCKED &&
+                transitionCorroborationDelayMs > 0L &&
+                (initialInferred.hasCameraPermission != true ||
+                        initialInferred.confidence == InferenceConfidence.LOW ||
+                        initialInferred.packageName == null)
+
+        if (needsCorroboration) {
+            logD("Initiating adaptive transition corroboration window (${transitionCorroborationDelayMs}ms) for cameraId=$cameraId, initialCandidate=${initialInferred.packageName}")
+            coroutineScope.launch {
+                delay(transitionCorroborationDelayMs)
+                val corroboratedContext = inferenceEngine?.corroborateTransition(
+                    eventTimestamp = startCaptureTime,
+                    lookaheadWindowMs = transitionCorroborationDelayMs
+                )
+                val finalContext = corroboratedContext ?: initialInferred
+                if (corroboratedContext != null) {
+                    logD("Transition corroborated: updated attribution for cameraId=$cameraId from ${initialInferred.packageName} to ${corroboratedContext.packageName}")
+                    activeCameraSessionOwners[cameraId] = corroboratedContext
+                    lastAvailabilityPackage = corroboratedContext.packageName
+                } else {
+                    logD("Transition uncorroborated: retaining attribution for cameraId=$cameraId as ${initialInferred.packageName}")
+                }
+                processEvaluatedCameraEvent(
+                    cameraId = cameraId,
+                    rawType = rawType,
+                    eventTimestamp = startCaptureTime,
+                    screenState = screenState,
+                    inferredContext = finalContext
+                )
+            }
+        } else {
+            processEvaluatedCameraEvent(
+                cameraId = cameraId,
+                rawType = rawType,
+                eventTimestamp = startCaptureTime,
+                screenState = screenState,
+                inferredContext = initialInferred
+            )
+        }
+    }
+
+    private fun processEvaluatedCameraEvent(
+        cameraId: String,
+        rawType: RawCameraEventType,
+        eventTimestamp: Long,
+        screenState: ScreenInteractivityState,
+        inferredContext: InferredPackageContext
+    ) {
         val isKnownCamera = inferredContext.packageName != null &&
                 (inferenceEngine?.isCameraApplication(inferredContext.packageName) == true)
 
@@ -386,10 +449,10 @@ class CameraAvailabilityTracker(
             isKnownCameraApp = isKnownCamera
         )
 
-        val detectionLatency = (System.currentTimeMillis() - startCaptureTime).coerceAtLeast(0L)
+        val detectionLatency = (System.currentTimeMillis() - eventTimestamp).coerceAtLeast(0L)
 
         val event = CameraAccessEvent(
-            timestamp = startCaptureTime,
+            timestamp = eventTimestamp,
             rawEventType = rawType,
             cameraId = cameraId,
             screenState = screenState,
@@ -407,6 +470,7 @@ class CameraAvailabilityTracker(
             mlInvoked = hybridResult.mlInvoked
         )
 
+        logD("Evaluated CameraAccessEvent: package=${inferredContext.packageName}, class=${hybridResult.finalClassification}, tier=${hybridResult.tierUsed}")
         cameraMonitor?.recordEvent(event)
         onEventDetected?.invoke(event)
     }

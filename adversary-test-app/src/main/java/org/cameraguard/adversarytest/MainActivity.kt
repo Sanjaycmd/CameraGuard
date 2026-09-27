@@ -58,6 +58,9 @@ class MainActivity : Activity() {
     private lateinit var telemetryTextView: TextView
     private lateinit var startButton: Button
     private lateinit var stopButton: Button
+    private lateinit var a2Button: Button
+    private lateinit var a2ResultCard: LinearLayout
+    private lateinit var a2ResultTextView: TextView
     private lateinit var permissionCard: LinearLayout
     private lateinit var durationButton5s: Button
     private lateinit var durationButton10s: Button
@@ -100,11 +103,13 @@ class MainActivity : Activity() {
 
         controller.onStateChanged = { state ->
             runOnUiThread {
+                val perm = hasCameraPermission()
                 when (state) {
                     AdversarialTestController.TestState.CLOSED -> {
                         statusBadge.text = getString(R.string.status_closed)
                         statusBadge.setBackgroundColor(Color.parseColor("#757575"))
-                        startButton.isEnabled = hasCameraPermission()
+                        startButton.isEnabled = perm
+                        a2Button.isEnabled = perm
                         stopButton.isEnabled = false
                         telemetryTextView.text = "Session idle. Camera hardware released."
                     }
@@ -112,12 +117,14 @@ class MainActivity : Activity() {
                         statusBadge.text = getString(R.string.status_active)
                         statusBadge.setBackgroundColor(Color.parseColor("#2E7D32")) // Green
                         startButton.isEnabled = false
+                        a2Button.isEnabled = false
                         stopButton.isEnabled = true
                     }
                     AdversarialTestController.TestState.COMPLETE -> {
                         statusBadge.text = getString(R.string.status_complete)
                         statusBadge.setBackgroundColor(Color.parseColor("#1565C0")) // Blue
-                        startButton.isEnabled = hasCameraPermission()
+                        startButton.isEnabled = perm
+                        a2Button.isEnabled = perm
                         stopButton.isEnabled = false
                         telemetryTextView.text = "Test completed successfully (${controller.selectedDurationSeconds}s). Camera closed cleanly."
                     }
@@ -125,15 +132,34 @@ class MainActivity : Activity() {
                         statusBadge.text = getString(R.string.status_no_camera)
                         statusBadge.setBackgroundColor(Color.parseColor("#C62828"))
                         startButton.isEnabled = false
+                        a2Button.isEnabled = false
                         stopButton.isEnabled = false
                         telemetryTextView.text = "Error: No rear or hardware camera found on this device."
                     }
                     AdversarialTestController.TestState.ERROR -> {
                         statusBadge.text = "CAMERA ERROR"
                         statusBadge.setBackgroundColor(Color.parseColor("#C62828"))
-                        startButton.isEnabled = hasCameraPermission()
+                        startButton.isEnabled = perm
+                        a2Button.isEnabled = perm
                         stopButton.isEnabled = false
                         telemetryTextView.text = "Error: ${controller.lastErrorMessage ?: "Failed to acquire camera"}"
+                    }
+                    AdversarialTestController.TestState.A2_RUNNING -> {
+                        statusBadge.text = getString(R.string.status_a2_running)
+                        statusBadge.setBackgroundColor(Color.parseColor("#E65100")) // Orange
+                        startButton.isEnabled = false
+                        a2Button.isEnabled = false
+                        stopButton.isEnabled = false
+                        telemetryTextView.text = "A2 scenario executing: App moving to background and attempting camera access..."
+                    }
+                    AdversarialTestController.TestState.A2_BLOCKED -> {
+                        statusBadge.text = getString(R.string.status_a2_blocked)
+                        statusBadge.setBackgroundColor(Color.parseColor("#C62828")) // Red
+                        startButton.isEnabled = perm
+                        a2Button.isEnabled = perm
+                        stopButton.isEnabled = false
+                        telemetryTextView.text = "A2 test complete. Android platform blocked background access."
+                        updateA2ResultUI()
                     }
                 }
             }
@@ -169,8 +195,10 @@ class MainActivity : Activity() {
     private fun checkPermissionsAndUpdateUI() {
         val granted = hasCameraPermission()
         permissionCard.visibility = if (granted) View.GONE else View.VISIBLE
-        if (controller.currentState != AdversarialTestController.TestState.ACTIVE) {
+        if (controller.currentState != AdversarialTestController.TestState.ACTIVE &&
+            controller.currentState != AdversarialTestController.TestState.A2_RUNNING) {
             startButton.isEnabled = granted
+            a2Button.isEnabled = granted
         }
     }
 
@@ -193,6 +221,21 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun updateA2ResultUI() {
+        val result = controller.lastA2Result ?: return
+        a2ResultCard.visibility = View.VISIBLE
+        val sb = StringBuilder()
+        sb.append("• Attempted: ${if (result.attempted) "YES" else "NO"}\n")
+        sb.append("• App Backgrounded: ${if (result.backgrounded) "YES (moveTaskToBack)" else "NO"}\n")
+        sb.append("• Foreground Service: ${if (result.foregroundServiceActive) "ACTIVE" else "NONE (Standard Background)"}\n")
+        sb.append("• Platform Result: ${result.platformResult}\n")
+        sb.append("• Hardware Acquired: ${if (result.hardwareAcquired) "YES" else "NO (Zero Hardware Session)"}\n")
+        sb.append("• Frames Captured: ${result.framesCaptured}\n")
+        sb.append("• Detail: ${result.detail}\n\n")
+        sb.append("Platform policy enforced: Android blocked background camera session without FGS. CameraGuard detects transient HAL probe.")
+        a2ResultTextView.text = sb.toString()
+    }
+
     private fun startJuryCameraSession() {
         if (!hasCameraPermission()) {
             requestCameraPermission()
@@ -206,6 +249,162 @@ class MainActivity : Activity() {
 
         controller.startTest(targetId) { cameraId, onOpened, onError ->
             openCameraHardware(cameraId, onOpened, onError)
+        }
+    }
+
+    private fun startA2TestSession() {
+        if (!hasCameraPermission()) {
+            requestCameraPermission()
+            return
+        }
+
+        val targetId = controller.activeCameraId ?: run {
+            resolveAvailableCameras()
+            controller.activeCameraId
+        }
+
+        controller.startA2Test(targetId) { cameraId, onComplete ->
+            executeA2Scenario(cameraId, onComplete)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun executeA2Scenario(cameraId: String, onComplete: (A2ExecutionResult) -> Unit) {
+        activityScope.launch {
+            Log.i(TAG, "[A2_JURY_START] Moving activity to background...")
+            moveTaskToBack(true)
+            delay(2000L) // Wait 2 seconds for Android lifecycle to reach background state
+
+            Log.i(TAG, "[A2_JURY_OPEN] Attempting Camera2 openCamera from background cameraId=$cameraId")
+            val cameraManager = getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+            if (cameraManager == null) {
+                onComplete(
+                    A2ExecutionResult(
+                        attempted = true,
+                        backgrounded = true,
+                        foregroundServiceActive = false,
+                        platformResult = "FAILED_NO_CAMERA_MANAGER",
+                        hardwareAcquired = false,
+                        framesCaptured = 0,
+                        detail = "CameraManager service not available"
+                    )
+                )
+                return@launch
+            }
+
+            try {
+                cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+                    override fun onOpened(camera: CameraDevice) {
+                        activeCameraDevice = camera
+                        Log.i(TAG, "[A2_JURY_OPENED] Camera unexpectedly opened: cameraId=$cameraId")
+                        activityScope.launch {
+                            delay(1000L)
+                            closeCamera()
+                            onComplete(
+                                A2ExecutionResult(
+                                    attempted = true,
+                                    backgrounded = true,
+                                    foregroundServiceActive = false,
+                                    platformResult = "GRANTED_UNEXPECTEDLY",
+                                    hardwareAcquired = true,
+                                    framesCaptured = 0,
+                                    detail = "Camera access was unexpectedly granted in background"
+                                )
+                            )
+                        }
+                    }
+
+                    override fun onDisconnected(camera: CameraDevice) {
+                        Log.w(TAG, "[A2_JURY_DISCONNECTED] Camera disconnected: cameraId=$cameraId")
+                        camera.close()
+                        activeCameraDevice = null
+                        onComplete(
+                            A2ExecutionResult(
+                                attempted = true,
+                                backgrounded = true,
+                                foregroundServiceActive = false,
+                                platformResult = "DISCONNECTED",
+                                hardwareAcquired = false,
+                                framesCaptured = 0,
+                                detail = "Camera disconnected during background attempt"
+                            )
+                        )
+                    }
+
+                    override fun onError(camera: CameraDevice, error: Int) {
+                        val isPolicyBlocked = (error == ERROR_CAMERA_DISABLED)
+                        val platformResult = if (isPolicyBlocked) {
+                            "BLOCKED_BY_PLATFORM (ERROR_CAMERA_DISABLED / error 3)"
+                        } else {
+                            "FAILED (error $error)"
+                        }
+                        val detail = if (isPolicyBlocked) {
+                            "Platform security policy denied background camera access (ERROR_CAMERA_DISABLED). No camera session or frame capture occurred."
+                        } else {
+                            "Camera open failed with error code $error"
+                        }
+                        Log.i(TAG, "[A2_JURY_RESULT] error=$error platformResult=$platformResult detail=$detail")
+                        camera.close()
+                        activeCameraDevice = null
+                        onComplete(
+                            A2ExecutionResult(
+                                attempted = true,
+                                backgrounded = true,
+                                foregroundServiceActive = false,
+                                platformResult = platformResult,
+                                hardwareAcquired = false,
+                                framesCaptured = 0,
+                                detail = detail
+                            )
+                        )
+                    }
+                }, cameraHandler)
+            } catch (se: SecurityException) {
+                Log.e(TAG, "[A2_JURY_SECURITY] SecurityException: ${se.message}")
+                onComplete(
+                    A2ExecutionResult(
+                        attempted = true,
+                        backgrounded = true,
+                        foregroundServiceActive = false,
+                        platformResult = "BLOCKED_BY_PLATFORM (SecurityException)",
+                        hardwareAcquired = false,
+                        framesCaptured = 0,
+                        detail = se.message ?: "SecurityException thrown"
+                    )
+                )
+            } catch (cae: CameraAccessException) {
+                Log.e(TAG, "[A2_JURY_ACCESS] CameraAccessException: ${cae.message}")
+                val isPolicyBlocked = (cae.reason == CameraAccessException.CAMERA_DISABLED)
+                val platformResult = if (isPolicyBlocked) {
+                    "BLOCKED_BY_PLATFORM (CAMERA_DISABLED)"
+                } else {
+                    "FAILED (CameraAccessException ${cae.reason})"
+                }
+                onComplete(
+                    A2ExecutionResult(
+                        attempted = true,
+                        backgrounded = true,
+                        foregroundServiceActive = false,
+                        platformResult = platformResult,
+                        hardwareAcquired = false,
+                        framesCaptured = 0,
+                        detail = cae.message ?: "CameraAccessException thrown"
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "[A2_JURY_FAIL] General error: ${e.message}")
+                onComplete(
+                    A2ExecutionResult(
+                        attempted = true,
+                        backgrounded = true,
+                        foregroundServiceActive = false,
+                        platformResult = "FAILED (${e.javaClass.simpleName})",
+                        hardwareAcquired = false,
+                        framesCaptured = 0,
+                        detail = e.message ?: "General exception thrown"
+                    )
+                )
+            }
         }
     }
 
@@ -380,8 +579,8 @@ class MainActivity : Activity() {
         // Spacer
         container.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 32) })
 
-        // 5. Information Card
-        val infoCard = LinearLayout(this).apply {
+        // 5. Section 1: Normal Camera Acquisition Test Card
+        val normalTestCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 32, 32, 32)
             background = GradientDrawable().apply {
@@ -390,14 +589,14 @@ class MainActivity : Activity() {
                 setStroke(2, Color.parseColor("#E0E0E0"))
             }
         }
-        val infoTitle = TextView(this).apply {
-            text = "Test Configuration"
+        val normalTitle = TextView(this).apply {
+            text = getString(R.string.section_normal_test)
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#1A1A1A"))
             setPadding(0, 0, 0, 16)
         }
-        infoCard.addView(infoTitle)
+        normalTestCard.addView(normalTitle)
 
         cameraInfoTextView = TextView(this).apply {
             text = "Target Sensor: Rear Camera\nCaller Package: $packageName"
@@ -406,7 +605,7 @@ class MainActivity : Activity() {
             setLineSpacing(8f, 1f)
             setPadding(0, 0, 0, 24)
         }
-        infoCard.addView(cameraInfoTextView)
+        normalTestCard.addView(cameraInfoTextView)
 
         // Duration Label
         val durationLabel = TextView(this).apply {
@@ -416,7 +615,7 @@ class MainActivity : Activity() {
             setTextColor(Color.parseColor("#333333"))
             setPadding(0, 0, 0, 12)
         }
-        infoCard.addView(durationLabel)
+        normalTestCard.addView(durationLabel)
 
         // Duration Selector Buttons
         val durationRow = LinearLayout(this).apply {
@@ -450,14 +649,10 @@ class MainActivity : Activity() {
         durationRow.addView(durationButton10s)
         durationRow.addView(durationButton15s)
         durationRow.addView(durationButton30s)
-        infoCard.addView(durationRow)
+        normalTestCard.addView(durationRow)
 
-        container.addView(infoCard)
+        normalTestCard.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 24) })
 
-        // Spacer
-        container.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 32) })
-
-        // 6. Action Buttons
         startButton = Button(this).apply {
             text = getString(R.string.btn_start)
             textSize = 16f
@@ -467,12 +662,12 @@ class MainActivity : Activity() {
                 setColor(Color.parseColor("#2E7D32")) // Emerald Green
                 cornerRadius = 16f
             }
-            setPadding(0, 28, 0, 28)
+            setPadding(0, 24, 0, 24)
             setOnClickListener { startJuryCameraSession() }
         }
-        container.addView(startButton)
+        normalTestCard.addView(startButton)
 
-        container.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) })
+        normalTestCard.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 16) })
 
         stopButton = Button(this).apply {
             text = getString(R.string.btn_stop)
@@ -484,10 +679,97 @@ class MainActivity : Activity() {
                 setColor(Color.parseColor("#C62828")) // Red
                 cornerRadius = 16f
             }
-            setPadding(0, 28, 0, 28)
+            setPadding(0, 24, 0, 24)
             setOnClickListener { stopJuryCameraSession() }
         }
-        container.addView(stopButton)
+        normalTestCard.addView(stopButton)
+
+        container.addView(normalTestCard)
+
+        // Spacer
+        container.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 32) })
+
+        // 6. Section 2: Adversarial Scenarios Card
+        val adversarialCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 32, 32, 32)
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 16f
+                setStroke(2, Color.parseColor("#E0E0E0"))
+            }
+        }
+
+        val adversarialTitle = TextView(this).apply {
+            text = getString(R.string.section_adversarial_test)
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor("#1A1A1A"))
+            setPadding(0, 0, 0, 8)
+        }
+        adversarialCard.addView(adversarialTitle)
+
+        val adversarialDesc = TextView(this).apply {
+            text = getString(R.string.a2_desc)
+            textSize = 13f
+            setTextColor(Color.parseColor("#555555"))
+            setLineSpacing(6f, 1f)
+            setPadding(0, 0, 0, 20)
+        }
+        adversarialCard.addView(adversarialDesc)
+
+        a2Button = Button(this).apply {
+            text = getString(R.string.btn_a2_test)
+            textSize = 15f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#37474F")) // Slate Dark Gray
+                cornerRadius = 16f
+            }
+            setPadding(0, 24, 0, 24)
+            setOnClickListener { startA2TestSession() }
+        }
+        adversarialCard.addView(a2Button)
+
+        // Nested A2 Result Card
+        a2ResultCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+            visibility = View.GONE
+            val bg = GradientDrawable().apply {
+                setColor(Color.parseColor("#ECEFF1"))
+                cornerRadius = 12f
+                setStroke(2, Color.parseColor("#CFD8DC"))
+            }
+            background = bg
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = 24
+            }
+        }
+
+        val a2ResultHeader = TextView(this).apply {
+            text = "A2 Factual Outcome Report"
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor("#263238"))
+            setPadding(0, 0, 0, 8)
+        }
+        a2ResultCard.addView(a2ResultHeader)
+
+        a2ResultTextView = TextView(this).apply {
+            text = ""
+            textSize = 13f
+            setTextColor(Color.parseColor("#37474F"))
+            setLineSpacing(4f, 1f)
+        }
+        a2ResultCard.addView(a2ResultTextView)
+
+        adversarialCard.addView(a2ResultCard)
+        container.addView(adversarialCard)
 
         // Spacer
         container.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(1, 32) })
@@ -627,16 +909,28 @@ class MainActivity : Activity() {
                     override fun onError(camera: CameraDevice, error: Int) {
                         val isPolicyBlocked = (error == ERROR_CAMERA_DISABLED)
                         val groundTruth = if (isPolicyBlocked) "BLOCKED_BY_PLATFORM" else "FAILED"
+                        val errorDetail = when (error) {
+                            ERROR_CAMERA_DISABLED -> "ERROR_CAMERA_DISABLED (Blocked by platform policy)"
+                            ERROR_CAMERA_IN_USE -> "ERROR_CAMERA_IN_USE"
+                            ERROR_MAX_CAMERAS_IN_USE -> "ERROR_MAX_CAMERAS_IN_USE"
+                            ERROR_CAMERA_DEVICE -> "ERROR_CAMERA_DEVICE"
+                            ERROR_CAMERA_SERVICE -> "ERROR_CAMERA_SERVICE"
+                            else -> "UNKNOWN_ERROR_$error"
+                        }
+                        Log.e(TAG, "[ACCESS_RESULT] scenario=$scenarioId groundTruth=$groundTruth detail=$errorDetail")
                         camera.close()
                         safeResume(groundTruth)
                     }
                 }, cameraHandler)
             } catch (se: SecurityException) {
+                Log.e(TAG, "[ACCESS_RESULT] scenario=$scenarioId groundTruth=BLOCKED_BY_PLATFORM detail=SecurityException: ${se.message}")
                 safeResume("BLOCKED_BY_PLATFORM")
             } catch (cae: CameraAccessException) {
                 val groundTruth = if (cae.reason == CameraAccessException.CAMERA_DISABLED) "BLOCKED_BY_PLATFORM" else "FAILED"
+                Log.e(TAG, "[ACCESS_RESULT] scenario=$scenarioId groundTruth=$groundTruth detail=CameraAccessException: ${cae.message}")
                 safeResume(groundTruth)
             } catch (e: Exception) {
+                Log.e(TAG, "[ACCESS_RESULT] scenario=$scenarioId groundTruth=FAILED detail=Exception: ${e.message}")
                 safeResume("FAILED")
             }
         }

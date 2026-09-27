@@ -177,6 +177,11 @@ fun HistoryScreen(
                     onClick = { selectedFilter = AccessClassification.UNKNOWN },
                     label = { Text("Unknown") }
                 )
+                FilterChip(
+                    selected = selectedFilter == AccessClassification.AMBIGUOUS,
+                    onClick = { selectedFilter = AccessClassification.AMBIGUOUS },
+                    label = { Text("Ambiguous") }
+                )
             }
 
             if (filteredEvents.isEmpty()) {
@@ -241,6 +246,7 @@ fun EventItemCard(
         AccessClassification.UNEXPECTED -> Color(0xFFFFEBEE) to Color(0xFFC62828)
         AccessClassification.EXPECTED -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
         AccessClassification.UNKNOWN -> Color(0xFFFFF8E1) to Color(0xFFF57F17)
+        AccessClassification.AMBIGUOUS -> Color(0xFFFFF3E0) to Color(0xFFE65100)
     }
 
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }

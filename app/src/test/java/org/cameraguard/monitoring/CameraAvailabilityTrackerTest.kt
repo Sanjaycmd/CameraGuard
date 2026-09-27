@@ -619,4 +619,96 @@ class CameraAvailabilityTrackerTest {
         assertEquals(whatsappPackage, recordedEvents[3].inferredPackageName)
         assertNull(trackerWithEngine.getActiveSessionOwner("0"))
     }
+
+    /**
+     * Requirement 9: Adaptive Transition Corroboration promotes cold launch candidate
+     * from Launcher3 to genuine Camera application when Camera resumes within corroboration window.
+     */
+    @Test
+    fun testColdTransitionCorroboration_promotesLauncherToCamera() {
+        val launcherPackage = "com.android.launcher3"
+        val cameraPackage = "com.android.camera"
+        val testStart = System.currentTimeMillis()
+
+        val dynamicEvents = mutableListOf(
+            UsageEventRecord(
+                packageName = launcherPackage,
+                timestamp = testStart - 500L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            ),
+            UsageEventRecord(
+                packageName = cameraPackage,
+                timestamp = testStart + 50L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> dynamicEvents },
+            customPermissionChecker = { it == cameraPackage }
+        )
+
+        val trackerWithEngine = CameraAvailabilityTracker(inferenceEngine = engine)
+        trackerWithEngine.transitionCorroborationDelayMs = 100L
+        trackerWithEngine.onEventDetected = { event -> recordedEvents.add(event) }
+
+        // Baseline
+        trackerWithEngine.availabilityCallback.onCameraAvailable("0")
+        assertEquals(0, recordedEvents.size)
+
+        // Camera opens at testStart (while launcher is initially foreground candidate)
+        trackerWithEngine.availabilityCallback.onCameraUnavailable("0")
+
+        // Wait for corroboration window to resolve
+        Thread.sleep(250L)
+
+        assertEquals("Should have recorded 1 evaluated event after corroboration", 1, recordedEvents.size)
+        val event = recordedEvents[0]
+        assertEquals(cameraPackage, event.inferredPackageName)
+        assertEquals(AccessClassification.EXPECTED, event.classification)
+        assertEquals(cameraPackage, trackerWithEngine.getActiveSessionOwner("0")?.packageName)
+    }
+
+    /**
+     * Requirement 10: Adaptive Transition Corroboration retains unprivileged candidate as UNEXPECTED
+     * if no camera-capable application resumes during the corroboration window (genuine unauthorized probe).
+     */
+    @Test
+    fun testColdTransitionCorroboration_unprivilegedRemainsUnexpectedWhenNoCameraResumes() {
+        val unprivilegedPackage = "com.example.maliciousapp"
+        val testStart = System.currentTimeMillis()
+
+        val dynamicEvents = mutableListOf(
+            UsageEventRecord(
+                packageName = unprivilegedPackage,
+                timestamp = testStart - 500L,
+                eventType = UsageEvents.Event.ACTIVITY_RESUMED
+            )
+        )
+
+        val engine = ContextualInferenceEngine(
+            customEventProvider = { _, _ -> dynamicEvents },
+            customPermissionChecker = { false }
+        )
+
+        val trackerWithEngine = CameraAvailabilityTracker(inferenceEngine = engine)
+        trackerWithEngine.transitionCorroborationDelayMs = 100L
+        trackerWithEngine.onEventDetected = { event -> recordedEvents.add(event) }
+
+        // Baseline
+        trackerWithEngine.availabilityCallback.onCameraAvailable("0")
+        assertEquals(0, recordedEvents.size)
+
+        // Camera opens at testStart
+        trackerWithEngine.availabilityCallback.onCameraUnavailable("0")
+
+        // Wait for corroboration window to resolve
+        Thread.sleep(250L)
+
+        assertEquals("Should have recorded 1 evaluated event after corroboration", 1, recordedEvents.size)
+        val event = recordedEvents[0]
+        assertEquals(unprivilegedPackage, event.inferredPackageName)
+        assertEquals(AccessClassification.UNEXPECTED, event.classification)
+        assertEquals(unprivilegedPackage, trackerWithEngine.getActiveSessionOwner("0")?.packageName)
+    }
 }

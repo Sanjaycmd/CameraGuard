@@ -192,4 +192,107 @@ class AdversarialTestControllerTest {
         controller.cleanup()
         assertEquals(3, cameraCloseCount)
     }
+
+    @Test
+    fun testStartA2Test_noCameraAvailable_transitionsToNoCameraState() {
+        controller.startA2Test(cameraId = null) { _, _ -> }
+        assertEquals(AdversarialTestController.TestState.NO_CAMERA_AVAILABLE, controller.currentState)
+    }
+
+    @Test
+    fun testStartA2Test_blockedByPlatform_transitionsToA2Blocked_andRecordsResult() {
+        var a2Executed = false
+        var completedCallbackCalled = false
+
+        controller.onA2Completed = {
+            completedCallbackCalled = true
+        }
+
+        controller.startA2Test("0") { camId, onComplete ->
+            assertEquals("0", camId)
+            a2Executed = true
+            assertEquals(AdversarialTestController.TestState.A2_RUNNING, controller.currentState)
+
+            onComplete(
+                A2ExecutionResult(
+                    attempted = true,
+                    backgrounded = true,
+                    foregroundServiceActive = false,
+                    platformResult = "BLOCKED_BY_PLATFORM (ERROR_CAMERA_DISABLED / error 3)",
+                    hardwareAcquired = false,
+                    framesCaptured = 0,
+                    detail = "Platform security policy denied background camera access"
+                )
+            )
+        }
+
+        assertTrue(a2Executed)
+        assertTrue(completedCallbackCalled)
+        assertEquals(AdversarialTestController.TestState.A2_BLOCKED, controller.currentState)
+        val result = controller.lastA2Result
+        assertTrue(result != null)
+        assertTrue(result!!.attempted)
+        assertTrue(result.backgrounded)
+        assertFalse(result.foregroundServiceActive)
+        assertEquals("BLOCKED_BY_PLATFORM (ERROR_CAMERA_DISABLED / error 3)", result.platformResult)
+        assertFalse(result.hardwareAcquired)
+        assertEquals(0, result.framesCaptured)
+    }
+
+    @Test
+    fun testStartA2Test_unexpectedlyGranted_transitionsToComplete() {
+        controller.startA2Test("0") { _, onComplete ->
+            onComplete(
+                A2ExecutionResult(
+                    attempted = true,
+                    backgrounded = true,
+                    foregroundServiceActive = false,
+                    platformResult = "GRANTED_UNEXPECTEDLY",
+                    hardwareAcquired = true,
+                    framesCaptured = 0,
+                    detail = "Unexpectedly granted"
+                )
+            )
+        }
+
+        assertEquals(AdversarialTestController.TestState.COMPLETE, controller.currentState)
+        assertTrue(controller.lastA2Result!!.hardwareAcquired)
+    }
+
+    @Test
+    fun testStartA2Test_ignoredWhenActive() {
+        controller.startTest("0") { _, onOpened, _ -> onOpened() }
+        assertEquals(AdversarialTestController.TestState.ACTIVE, controller.currentState)
+
+        var a2Called = false
+        controller.startA2Test("0") { _, _ -> a2Called = true }
+        assertFalse(a2Called)
+        assertEquals(AdversarialTestController.TestState.ACTIVE, controller.currentState)
+    }
+
+    @Test
+    fun testStartTest_ignoredWhenA2Running() {
+        controller.startA2Test("0") { _, _ ->
+            // In the middle of A2, do not complete immediately
+        }
+        assertEquals(AdversarialTestController.TestState.A2_RUNNING, controller.currentState)
+
+        var openCalled = false
+        controller.startTest("0") { _, onOpened, _ ->
+            openCalled = true
+            onOpened()
+        }
+        assertFalse(openCalled)
+        assertEquals(AdversarialTestController.TestState.A2_RUNNING, controller.currentState)
+    }
+
+    @Test
+    fun testSelectDuration_ignoredWhenA2Running() {
+        controller.selectDuration(10)
+        controller.startA2Test("0") { _, _ -> }
+        assertEquals(AdversarialTestController.TestState.A2_RUNNING, controller.currentState)
+
+        controller.selectDuration(30)
+        assertEquals(10, controller.selectedDurationSeconds)
+    }
 }

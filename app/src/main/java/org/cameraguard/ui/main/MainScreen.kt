@@ -59,6 +59,7 @@ import java.util.Locale
 fun MainScreen(
     onNavigate: (NavKey) -> Unit,
     modifier: Modifier = Modifier,
+    showResearchPipeline: Boolean = false,
     viewModel: MainScreenViewModel = viewModel {
         val context = this[androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Context
         val db = CameraGuardDatabase.getInstance(context)
@@ -247,6 +248,7 @@ fun MainScreen(
                             AccessClassification.UNEXPECTED -> Color(0xFFC62828)
                             AccessClassification.EXPECTED -> Color(0xFF2E7D32)
                             AccessClassification.UNKNOWN -> Color(0xFFF57F17)
+                            AccessClassification.AMBIGUOUS -> Color(0xFFE65100)
                         },
                         fontWeight = FontWeight.Bold
                     )
@@ -308,62 +310,64 @@ fun MainScreen(
             }
         }
 
-        // 5. Testability: Synthetic Event Pipeline
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+        // 5. Testability: Synthetic Event Pipeline (Gated behind showResearchPipeline)
+        if (showResearchPipeline) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text(
-                    text = "Research & Test Pipeline",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Inject controlled synthetic events (isSynthetic = true) to verify the rule classifier, Room persistence, and notifications without spoofing real hardware:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                OutlinedButton(
-                    onClick = {
-                        val event = SyntheticEventGenerator.createScreenOffUnexpectedEvent()
-                        viewModel.injectSyntheticEvent(event)
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Simulate: Screen-Off Camera Access (Unexpected)")
-                }
+                    Text(
+                        text = "Research & Test Pipeline",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Inject controlled synthetic events (isSynthetic = true) to verify the rule classifier, Room persistence, and notifications without spoofing real hardware:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                OutlinedButton(
-                    onClick = {
-                        val event = SyntheticEventGenerator.createNormalExpectedEvent()
-                        viewModel.injectSyntheticEvent(event)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Simulate: Normal Camera App Usage (Expected)")
-                }
+                    OutlinedButton(
+                        onClick = {
+                            val event = SyntheticEventGenerator.createScreenOffUnexpectedEvent()
+                            viewModel.injectSyntheticEvent(event)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Simulate: Screen-Off Camera Access (Unexpected)")
+                    }
 
-                OutlinedButton(
-                    onClick = {
-                        val event = SyntheticEventGenerator.createUnknownContextEvent()
-                        viewModel.injectSyntheticEvent(event)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Simulate: Inconclusive Telemetry (Unknown)")
-                }
+                    OutlinedButton(
+                        onClick = {
+                            val event = SyntheticEventGenerator.createNormalExpectedEvent()
+                            viewModel.injectSyntheticEvent(event)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Simulate: Normal Camera App Usage (Expected)")
+                    }
 
-                Button(
-                    onClick = { viewModel.clearSyntheticEvents() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Purge Only Synthetic Test Events")
+                    OutlinedButton(
+                        onClick = {
+                            val event = SyntheticEventGenerator.createUnknownContextEvent()
+                            viewModel.injectSyntheticEvent(event)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Simulate: Inconclusive Telemetry (Unknown)")
+                    }
+
+                    Button(
+                        onClick = { viewModel.clearSyntheticEvents() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Purge Only Synthetic Test Events")
+                    }
                 }
             }
         }

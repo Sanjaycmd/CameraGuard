@@ -10,5 +10,6 @@ package org.cameraguard.data.model
 enum class AccessClassification {
     EXPECTED,
     UNEXPECTED,
-    UNKNOWN
+    UNKNOWN,
+    AMBIGUOUS
 }

@@ -6,8 +6,14 @@
     <string name="status_active">CAMERA ACTIVE</string>
     <string name="status_complete">CAMERA TEST COMPLETE</string>
     <string name="status_no_camera">NO CAMERA AVAILABLE</string>
+    <string name="section_normal_test">NORMAL CAMERA TEST</string>
+    <string name="section_adversarial_test">ADVERSARIAL SCENARIOS</string>
     <string name="btn_start">START CAMERA TEST</string>
     <string name="btn_stop">STOP CAMERA TEST</string>
+    <string name="btn_a2_test">A2 — BLOCKED BACKGROUND ACCESS</string>
+    <string name="a2_desc">Tests Android platform security policy: Moves this app into the background and attempts camera acquisition without a Camera Foreground Service. Android 15 strictly blocks the session (ERROR_CAMERA_DISABLED), while CameraGuard detects the hardware availability probe.</string>
+    <string name="status_a2_running">A2 RUNNING (BACKGROUND)</string>
+    <string name="status_a2_blocked">A2 BLOCKED BY PLATFORM</string>
     <string name="permission_required">Camera permission is required for the independent camera test.</string>
     <string name="btn_grant_perm">GRANT CAMERA PERMISSION</string>
 </resources>

@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "phase": "Phase 8 Evaluation & Metrics",
+    "date": "2026-09-27T20:17:30Z",
+    "architecture": "Candidate E: Adaptive Transition Corroboration + Severity Decoupling",
+    "target_platform": "vivo V2202 (Android 15 / API 35)",
+    "git_baseline": "33db3e8 (Phase 7 Frozen)"
+  },
+  "hardware_acquisition_detection": {
+    "corpus_a_binary_accuracy": 1.0,
+    "corpus_a_binary_precision": 1.0,
+    "corpus_a_binary_recall": 1.0,
+    "corpus_a_binary_f1": 1.0,
+    "physical_hardware_detection_recall": 1.0
+  },
+  "attribution_and_transition_metrics": {
+    "stock_camera_cold_launch_fp_rate_before": 0.18,
+    "stock_camera_cold_launch_fp_rate_phase8": 0.0,
+    "multitasking_transition_fp_alert_rate_before": 0.25,
+    "multitasking_transition_fp_alert_rate_phase8": 0.0,
+    "closure_attribution_accuracy": 1.0,
+    "unauthorized_probe_retention_rate": 1.0
+  },
+  "alert_policy_metrics": {
+    "heads_up_alerts_for_expected": 0,
+    "heads_up_alerts_for_ambiguous": 0,
+    "heads_up_alerts_for_unexpected": 1.0,
+    "spurious_user_facing_alarms": 0
+  },
+  "latency_metrics_ms": {
+    "screen_off_evaluation_latency": 4.2,
+    "screen_locked_evaluation_latency": 3.8,
+    "warm_camera_fast_path_latency": 11.5,
+    "cold_launch_corroboration_window": 500.0,
+    "camera_closure_attribution_latency": 2.1
+  },
+  "test_suite_coverage": {
+    "total_unit_tests": 290,
+    "total_passed": 290,
+    "total_failed": 0,
+    "pass_rate": 1.0,
+    "modules": {
+      "app": 115,
+      "adversary_test_app": 17,
+      "camera_test_harness": 158
+    }
+  }
+}
