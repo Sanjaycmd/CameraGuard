@@ -1,0 +1,153 @@
+{
+  "manifest_version": "6.1.0",
+  "timestamp_iso": "2026-09-27T10:34:28.035721+00:00",
+  "git_commit": "6234180",
+  "phase4_frozen_checkpoint": "c8515ea",
+  "inventory": {
+    "total_raw_csv_files": 15,
+    "total_raw_rows": 1193,
+    "unique_event_records": 652,
+    "duplicate_event_records": 541,
+    "total_reconstructed_sessions": 92,
+    "included_sessions": 89,
+    "excluded_sessions": 3,
+    "raw_files": [
+      {
+        "file": "cameraguard_experiment_20260925_205319.csv",
+        "rows": 34,
+        "sha256": "3f38380e37ea3ca9bb3f40bc7f4844826c94056c035b3900b8f37302a0d8157f",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_205652.csv",
+        "rows": 35,
+        "sha256": "ea66ba74dac6dd10e3c781dad8efb6f1b6f76208ccaa75ab725a9d855ebf7bb3",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_213654.csv",
+        "rows": 18,
+        "sha256": "cb7ec95ef4d816e83b12f337e5ef28993ece95d1a81f34700306a08f902a3fde",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_232335.csv",
+        "rows": 202,
+        "sha256": "72899ac4e5e5abe2c30379ef0d6a0148b239db795cbc35532539cbb5ef3288e0",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_233214.csv",
+        "rows": 321,
+        "sha256": "d6d19f7156e22a5107f0fcc11a1f043bbe8e7ab9e4e4303ad7f8e2db5a4a7e59",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_233332.csv",
+        "rows": 327,
+        "sha256": "18b27470c557b0c688e3ba56c894977a2cc068d7f0a62b04ea77ef74a38cd09f",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_233639.csv",
+        "rows": 35,
+        "sha256": "47406bf9876f0cf92169c1d25cb4fc688a4f2b7ba84287e4b72067bedaf4868a",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_233934.csv",
+        "rows": 55,
+        "sha256": "7c1a6e82d6ade4fcec6d4b34a89c916e608defea52c4651024f42afc9cdb7ae2",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260925_234121.csv",
+        "rows": 35,
+        "sha256": "4aa6853664a308c1739efcfc821ae160bb3a5f2ae8efcb8ae9bd5903b49f0663",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260926_000121.csv",
+        "rows": 5,
+        "sha256": "8114c7a1fcced0e2c68acd4ef8189de69c318ea77c6466467c16cb47cd9f31da",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260926_000311.csv",
+        "rows": 6,
+        "sha256": "f1c32ab996234d1d4cca1e773acbc004c012246f68e93a1714bd034d2690a38b",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260926_000440.csv",
+        "rows": 3,
+        "sha256": "676f66f62f50684f7de905e64d2191da620fd14ce7a6c99215ca8dffd857e67d",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260926_000709.csv",
+        "rows": 61,
+        "sha256": "bf903a8ed84a1fb284d0ccf091d9a1a199b260b2d81a84daa86234bb1840f699",
+        "columns_count": 20
+      },
+      {
+        "file": "cameraguard_experiment_20260926_000917.csv",
+        "rows": 34,
+        "sha256": "e5006d37aca6ddf60a09557e4e6df266413488053698a44dc3e1e0583f9af305",
+        "columns_count": 20
+      },
+      {
+        "file": "persisted_experiment_history.csv",
+        "rows": 22,
+        "sha256": "24bdda99e91759837685d2b9a8d1ea06733b9e15b71e9de8e7444651a76603f4",
+        "columns_count": 20
+      }
+    ]
+  },
+  "cohorts": {
+    "TARGETED_41": 41,
+    "INTERMEDIATE_35": 35,
+    "BASELINE_16": 16
+  },
+  "exclusions": [
+    {
+      "session_id": "exp_20260925_205422_4e75d0",
+      "scenario_id": "PERMISSION_DENIED",
+      "cohort": "BASELINE_16",
+      "exclusion_reason": "Violates scenario ground-truth invariants"
+    },
+    {
+      "session_id": "exp_20260925_205424_0f3f21",
+      "scenario_id": "PERMISSION_DENIED",
+      "cohort": "BASELINE_16",
+      "exclusion_reason": "Violates scenario ground-truth invariants"
+    },
+    {
+      "session_id": "exp_20260925_205605_1b68ae",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "cohort": "BASELINE_16",
+      "exclusion_reason": "Pre-Phase-3.5.1 AMBIGUOUS_CONTEXT invalidly opened camera"
+    }
+  ],
+  "data_quality_verification": {
+    "feature_null_count_across_all_features": 0,
+    "feature_null_breakdown": {
+      "f01_screen_state": 0,
+      "f02_is_interactive": 0,
+      "f03_is_locked": 0,
+      "f04_perm_clamped": 0,
+      "f05_known_camera_app": 0,
+      "f06_package_confidence": 0,
+      "f07_inference_method": 0,
+      "f08_delta_resumed_ms": 0,
+      "f09_recent_activity_count": 0,
+      "f10_camera_id": 0,
+      "f11_is_back_camera": 0,
+      "f04_perm_oracle": 0
+    },
+    "target_null_count_task2": 0,
+    "target_null_count_task3": 0,
+    "dataset_hash_sha256": "79753100b00f64787ff75c74600ccaff933476a753c963f36654e25777e1a9db",
+    "status": "VERIFIED_INTEGRITY_CLEAN"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "contextual_inference_version": "6.7.0",
+  "timestamp_iso": "2026-09-27T10:34:28.100288+00:00",
+  "dimensions_evaluated": {
+    "screen_interactivity": {
+      "states_supported": [
+        "SCREEN_OFF",
+        "SCREEN_ON_UNLOCKED",
+        "SCREEN_ON_LOCKED"
+      ],
+      "live_validation": "Verified in P9 (screen lock/unlock during active streaming) and S1-S7. Screen transitions recorded without duplicate artifacts."
+    },
+    "permission_inference": {
+      "policy": "F04 clamped to UNVERIFIED (-1.0) in production sandbox to prevent security assumption violation across Android UID boundary.",
+      "verification": "Zero permission state leaks observed in P4, P5, P8, P10."
+    },
+    "unattributed_background_escalation": {
+      "unknown_attribution_events": 3,
+      "escalated_to_unexpected": 3,
+      "escalation_rate": 1.0,
+      "idle_screen_controls_finding": "When recent activity count <= 1.0 (idle screen), Decision Tree routes to CONTROLS -> EXPECTED (documented limitation L4). When activity count > 1.0, routes to AMBIGUOUS -> UNEXPECTED."
+    }
+  }
+}

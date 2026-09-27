@@ -1,0 +1,29 @@
+{
+  "latency_evaluation_version": "6.8.0",
+  "timestamp_iso": "2026-09-27T10:34:28.101457+00:00",
+  "clock_source": "System.currentTimeMillis() referenced against CameraManager.AvailabilityCallback invocation",
+  "clock_resolution_notes": "Timestamps originate from Android CameraService IPC dispatch onto CameraMonitoringService Looper.",
+  "sample_points_count": 24,
+  "statistics_ms": {
+    "min": 0.0,
+    "max": 10.0,
+    "mean": 4.583333333333333,
+    "median": 4.0,
+    "std_dev": 3.147971127920684,
+    "p50": 4.0,
+    "p75": 8.0,
+    "p90": 8.7,
+    "p95": 9.0,
+    "p99": 9.77
+  },
+  "scenario_averages_ms": {
+    "stress_single_control": 2.5,
+    "stress_repeated_sequential": 2.7,
+    "stress_high_volume": 3.8,
+    "stress_rapid_transitions": 1.9,
+    "stress_burst": 2.6,
+    "stress_same_owner": 4.0,
+    "stress_post_restart": 9.8
+  },
+  "compliance": "95% of detections occur within <= 9.0 ms, satisfying real-time Android monitoring requirements."
+}

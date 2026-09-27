@@ -1,0 +1,70 @@
+{
+  "corpus_a_research_dataset_n89": {
+    "unit_of_analysis": "session_level",
+    "samples_total": 89,
+    "positives_camera_acquisition": 56,
+    "negatives_control": 33,
+    "confusion_matrix": {
+      "TP": 56,
+      "TN": 33,
+      "FP": 0,
+      "FN": 0
+    },
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall_sensitivity": 1.0,
+      "specificity": 1.0,
+      "f1_score": 1.0
+    },
+    "confidence_intervals_95": {
+      "accuracy_ci": [
+        0.9586234541380101,
+        1.0
+      ],
+      "recall_ci": [
+        0.9358060623335392,
+        1.0
+      ],
+      "specificity_ci": [
+        0.8957300009841286,
+        0.9999999999999999
+      ]
+    },
+    "zero_denominator_handling": "Documented: safe division defaults to 1.0 when denominator=0 and numerator=0."
+  },
+  "corpus_b_live_physical_telemetry": {
+    "unit_of_analysis": "hardware_session_execution",
+    "device": "vivo V2202 (Android 15 / API 35)",
+    "total_established_camera_sessions": 75,
+    "total_blocked_non_acquisition_attempts": 7,
+    "confusion_matrix": {
+      "TP": 71,
+      "TN": 7,
+      "FP": 0,
+      "FN": 4
+    },
+    "metrics": {
+      "accuracy": 0.9512195121951219,
+      "precision": 1.0,
+      "recall_sensitivity": 0.9466666666666667,
+      "specificity": 1.0,
+      "f1_score": 0.9726027397260273
+    },
+    "confidence_intervals_95": {
+      "accuracy_ci": [
+        0.8811853800327552,
+        0.9808689345651513
+      ],
+      "recall_ci": [
+        0.8707401276633778,
+        0.9790665723987743
+      ],
+      "specificity_ci": [
+        0.6456695613241317,
+        1.0
+      ]
+    },
+    "finding": "Live detection across stress, adversarial, and permission suites is 100%. Lower recall in ambiguous context suite (63.6%) traces to documented HAL state deduplication in C9."
+  }
+}

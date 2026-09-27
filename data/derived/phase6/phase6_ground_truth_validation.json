@@ -1,0 +1,43 @@
+{
+  "ground_truth_version": "6.2.0",
+  "timestamp_iso": "2026-09-27T10:34:28.041452+00:00",
+  "total_included_sessions": 89,
+  "target_definitions": {
+    "task2_binary_hardware": {
+      "CAMERA_ACQUISITION": "Real-time hardware camera sensor allocation occurred (HAL opened session).",
+      "NO_CAMERA_CONTROL": "No hardware camera session granted (permission denied, control condition, or non-access probe)."
+    },
+    "task3_three_tier_policy": {
+      "LEGITIMATE": "User-correlated, expected foreground interaction (normal app launch, user triggered camera).",
+      "AMBIGUOUS": "Uncorrelated, background, or unassisted access attempt requiring inspection/escalation.",
+      "CONTROLS": "Baseline negative controls and denied non-acquisition probes."
+    }
+  },
+  "distribution": {
+    "scenarios": {
+      "NORMAL_FOREGROUND_CAMERA": 21,
+      "BACKGROUND_CAMERA_CONTINUATION": 18,
+      "PERMISSION_GRANTED_NO_CAMERA": 13,
+      "CAMERA_START_STOP": 11,
+      "AUTOMATED_BACKGROUND_TRIGGER": 11,
+      "PERMISSION_DENIED": 9,
+      "AMBIGUOUS_CONTEXT": 5,
+      "CAMERA_SESSION_CLOSED": 1
+    },
+    "task2_hardware": {
+      "CAMERA_ACQUISITION": 56,
+      "NO_CAMERA_CONTROL": 33
+    },
+    "task3_policy": {
+      "AMBIGUOUS": 34,
+      "LEGITIMATE": 33,
+      "CONTROLS": 22
+    }
+  },
+  "integrity_audit": {
+    "total_invariants_audited": 267,
+    "invariants_violated_count": 0,
+    "violations": [],
+    "ground_truth_soundness_status": "SOUND_AND_CONSISTENT"
+  }
+}

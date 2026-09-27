@@ -1,0 +1,146 @@
+{
+  "ACCUMULATED_89": {
+    "total_evaluated": 89,
+    "overall_accuracy": 0.9101123595505618,
+    "macro_f1": 0.9048287971905179,
+    "overall_accuracy_ci_95": [
+      0.8325390823024856,
+      0.9537475710916126
+    ],
+    "tier_breakdown": {
+      "tier_1_rule_resolved_count": 0,
+      "tier_1_rule_coverage": 0.0,
+      "tier_2_ml_resolved_count": 0,
+      "tier_2_ml_coverage": 0.0,
+      "unknown_resolution_rate": 1.0
+    },
+    "per_class": {
+      "AMBIGUOUS": {
+        "support": 34,
+        "precision": 1.0,
+        "recall": 0.7647058823529411,
+        "f1_score": 0.8666666666666667,
+        "ci_recall_95": [
+          0.6000386193800363,
+          0.8756301453064358
+        ]
+      },
+      "CONTROLS": {
+        "support": 22,
+        "precision": 0.7586206896551724,
+        "recall": 1.0,
+        "f1_score": 0.8627450980392157,
+        "ci_recall_95": [
+          0.8513451233948545,
+          1.0
+        ]
+      },
+      "LEGITIMATE": {
+        "support": 33,
+        "precision": 0.9705882352941176,
+        "recall": 1.0,
+        "f1_score": 0.9850746268656716,
+        "ci_recall_95": [
+          0.8957300009841286,
+          0.9999999999999999
+        ]
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "AMBIGUOUS",
+        "CONTROLS",
+        "LEGITIMATE"
+      ],
+      "matrix": [
+        [
+          26,
+          7,
+          1
+        ],
+        [
+          0,
+          22,
+          0
+        ],
+        [
+          0,
+          0,
+          33
+        ]
+      ]
+    }
+  },
+  "TARGETED_41": {
+    "total_evaluated": 41,
+    "overall_accuracy": 0.926829268292683,
+    "macro_f1": 0.9220389805097451,
+    "overall_accuracy_ci_95": [
+      0.8057255133716131,
+      0.9748021695624273
+    ],
+    "tier_breakdown": {
+      "tier_1_rule_resolved_count": 0,
+      "tier_1_rule_coverage": 0.0,
+      "tier_2_ml_resolved_count": 0,
+      "tier_2_ml_coverage": 0.0,
+      "unknown_resolution_rate": 1.0
+    },
+    "per_class": {
+      "AMBIGUOUS": {
+        "support": 16,
+        "precision": 1.0,
+        "recall": 0.8125,
+        "f1_score": 0.896551724137931,
+        "ci_recall_95": [
+          0.5699111883245088,
+          0.9340840098021131
+        ]
+      },
+      "CONTROLS": {
+        "support": 10,
+        "precision": 0.7692307692307693,
+        "recall": 1.0,
+        "f1_score": 0.8695652173913043,
+        "ci_recall_95": [
+          0.7224671969739421,
+          0.9999999999999999
+        ]
+      },
+      "LEGITIMATE": {
+        "support": 15,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "ci_recall_95": [
+          0.7961166964035129,
+          1.0
+        ]
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "AMBIGUOUS",
+        "CONTROLS",
+        "LEGITIMATE"
+      ],
+      "matrix": [
+        [
+          13,
+          3,
+          0
+        ],
+        [
+          0,
+          10,
+          0
+        ],
+        [
+          0,
+          0,
+          15
+        ]
+      ]
+    }
+  }
+}

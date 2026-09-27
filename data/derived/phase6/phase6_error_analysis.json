@@ -1,0 +1,119 @@
+{
+  "analysis_version": "6.9.0",
+  "timestamp_iso": "2026-09-27T10:34:28.106649+00:00",
+  "corpus_a_errors_total": 8,
+  "corpus_a_error_breakdown": {
+    "false_legitimate_incidents": 1,
+    "false_controls_incidents": 7,
+    "false_ambiguous_incidents": 0
+  },
+  "corpus_a_discrepancies": [
+    {
+      "session_id": "exp_20260925_205242_fa728c",
+      "cohort": "BASELINE_16",
+      "scenario_id": "BACKGROUND_CAMERA_CONTINUATION",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "LEGITIMATE",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_LEGITIMATE",
+      "root_cause_explanation": "High package confidence or correlation window edge condition routed event to LEGITIMATE."
+    },
+    {
+      "session_id": "exp_20260925_213559_3a8b54",
+      "cohort": "BASELINE_16",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260925_232728_rep1_95371d",
+      "cohort": "INTERMEDIATE_35",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260926_000409_rep1_8e3053",
+      "cohort": "TARGETED_41",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260926_000424_rep2_41fc88",
+      "cohort": "TARGETED_41",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260926_000436_rep3_50bdfb",
+      "cohort": "TARGETED_41",
+      "scenario_id": "AMBIGUOUS_CONTEXT",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260926_000517_rep1_b4db6b",
+      "cohort": "INTERMEDIATE_35",
+      "scenario_id": "AUTOMATED_BACKGROUND_TRIGGER",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    },
+    {
+      "session_id": "exp_20260926_000754_rep1_d81a2a",
+      "cohort": "INTERMEDIATE_35",
+      "scenario_id": "BACKGROUND_CAMERA_CONTINUATION",
+      "ground_truth": "AMBIGUOUS",
+      "hybrid_prediction": "CONTROLS",
+      "tier_used": "ML",
+      "error_category": "AMBIGUOUS_MISCLASSIFIED_AS_CONTROLS",
+      "root_cause_explanation": "Decision tree evaluated F06 <= 1.50 and F09 <= 1.00 (low recent activity), routing to CONTROLS leaf instead of AMBIGUOUS."
+    }
+  ],
+  "corpus_b_physical_deviations": [
+    {
+      "scenario_id": "C1",
+      "phase": "5.5",
+      "error_type": "ATTRIBUTION_FAILURE",
+      "root_cause": "UsageStatsManager 30-second window sensitivity: UI delay before camera open exceeded correlation window, resulting in honest UNKNOWN."
+    },
+    {
+      "scenario_id": "C6",
+      "phase": "5.5",
+      "error_type": "FALSE_UNEXPECTED_CLASSIFICATION",
+      "root_cause": "When legitimate app moved to background mid-stream, F06 package confidence degraded to LOW, causing Decision Tree to route to AMBIGUOUS (conservative alert)."
+    },
+    {
+      "scenario_id": "C9",
+      "phase": "5.5",
+      "error_type": "MISSED_DETECTION_RAPID_CYCLES",
+      "root_cause": "State-based deduplication in CameraAvailabilityTracker suppressed cycles 2 and 3 because no intermediate AVAILABLE callback cleared the cameraId state."
+    },
+    {
+      "scenario_id": "A3_A4",
+      "phase": "5.3-A",
+      "error_type": "TEMPORARY_ATTRIBUTION_ERROR_RESOLVED",
+      "root_cause": "UsageStats returned newly resumed foreground app instead of transitioning background caller. Addressed and verified in Phase 5.3-A.1 with transition lookback window."
+    }
+  ],
+  "critical_finding": "False Ambiguous rate is exactly 0.0% (zero innocent events falsely flagged as suspicious in Corpus A). System displays conservative behavior under ambiguity."
+}

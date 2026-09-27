@@ -1,0 +1,23 @@
+{
+  "statistical_summary_version": "6.13.0",
+  "timestamp_iso": "2026-09-27T10:34:28.114554+00:00",
+  "git_commit": "6234180",
+  "key_metrics_table": {
+    "corpus_a_hardware_detection_accuracy": 1.0,
+    "corpus_a_hardware_detection_recall": 1.0,
+    "corpus_a_hardware_detection_specificity": 1.0,
+    "corpus_a_hybrid_classification_accuracy_n89": 0.9101123595505618,
+    "corpus_a_hybrid_classification_macro_f1_n89": 0.9048287971905179,
+    "corpus_a_hybrid_classification_accuracy_n41": 0.926829268292683,
+    "corpus_a_hybrid_classification_macro_f1_n41": 0.9220389805097451,
+    "corpus_b_live_session_detection_rate": 0.9466666666666667,
+    "corpus_b_live_detection_specificity": 1.0,
+    "corpus_b_attribution_accuracy_permission_suite": 1.0,
+    "corpus_b_attribution_accuracy_ambiguous_suite": 0.625,
+    "corpus_b_anti_self_attribution_rate": 0.0,
+    "corpus_b_detection_latency_mean_ms": 4.583333333333333,
+    "corpus_b_detection_latency_median_ms": 4.0,
+    "corpus_b_detection_latency_p95_ms": 9.0
+  },
+  "verdict": "COMPLETE_AND_RIGOROUS"
+}

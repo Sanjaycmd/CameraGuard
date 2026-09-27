@@ -1,0 +1,38 @@
+{
+  "attribution_evaluation_version": "6.6.0",
+  "timestamp_iso": "2026-09-27T10:34:28.099769+00:00",
+  "summary": {
+    "anti_self_attribution_rate": 0.0,
+    "self_attribution_incidents": 0,
+    "stale_context_rate": 0.0,
+    "caller_switch_contamination_rate": 0.0,
+    "state_contamination_rate": 0.0
+  },
+  "suites": {
+    "permission_and_state_suite_p1_p10": {
+      "total_evaluated": 8,
+      "correct_attributions": 8,
+      "accuracy": 1.0,
+      "self_attribution_rate": 0.0
+    },
+    "adversarial_investigation_suite": {
+      "successful_accesses": 4,
+      "correct_attributions": 4,
+      "accuracy": 1.0
+    },
+    "ambiguous_context_suite_c1_c10": {
+      "sessions_with_sufficient_evidence": 8,
+      "correct_attributions": 5,
+      "attribution_accuracy": 0.625,
+      "confirmed_high_medium": 4,
+      "candidate_low": 1,
+      "unknown_honest_rate": 0.2727272727272727
+    }
+  },
+  "findings": [
+    "CameraGuard never self-attributes to org.cameraguard across any scenario.",
+    "Attribution accuracy is 100% when caller exhibits recent user-facing activity (ACTIVITY_RESUMED <= 5000ms).",
+    "When an unprivileged background component captures camera without recent user activity, attribution cleanly degrades to honest UNKNOWN.",
+    "UsageStats 30-second correlation window introduces sensitivity to user idle time (observed in C1)."
+  ]
+}

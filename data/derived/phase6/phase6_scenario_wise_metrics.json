@@ -1,0 +1,90 @@
+[
+  {
+    "scenario_id": "AMBIGUOUS_CONTEXT",
+    "cohort": "ACCUMULATED_89",
+    "samples": 5,
+    "ground_truth_target": "AMBIGUOUS",
+    "target2_hardware": "NO_CAMERA_CONTROL",
+    "hybrid_correct": 0,
+    "hybrid_accuracy": 0.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "AUTOMATED_BACKGROUND_TRIGGER",
+    "cohort": "ACCUMULATED_89",
+    "samples": 11,
+    "ground_truth_target": "AMBIGUOUS",
+    "target2_hardware": "MIXED",
+    "hybrid_correct": 10,
+    "hybrid_accuracy": 0.9090909090909091,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "BACKGROUND_CAMERA_CONTINUATION",
+    "cohort": "ACCUMULATED_89",
+    "samples": 18,
+    "ground_truth_target": "AMBIGUOUS",
+    "target2_hardware": "MIXED",
+    "hybrid_correct": 16,
+    "hybrid_accuracy": 0.8888888888888888,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "CAMERA_SESSION_CLOSED",
+    "cohort": "ACCUMULATED_89",
+    "samples": 1,
+    "ground_truth_target": "LEGITIMATE",
+    "target2_hardware": "CAMERA_ACQUISITION",
+    "hybrid_correct": 1,
+    "hybrid_accuracy": 1.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "INSUFFICIENT_SAMPLE_SIZE"
+  },
+  {
+    "scenario_id": "CAMERA_START_STOP",
+    "cohort": "ACCUMULATED_89",
+    "samples": 11,
+    "ground_truth_target": "LEGITIMATE",
+    "target2_hardware": "CAMERA_ACQUISITION",
+    "hybrid_correct": 11,
+    "hybrid_accuracy": 1.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "NORMAL_FOREGROUND_CAMERA",
+    "cohort": "ACCUMULATED_89",
+    "samples": 21,
+    "ground_truth_target": "LEGITIMATE",
+    "target2_hardware": "MIXED",
+    "hybrid_correct": 21,
+    "hybrid_accuracy": 1.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "PERMISSION_DENIED",
+    "cohort": "ACCUMULATED_89",
+    "samples": 9,
+    "ground_truth_target": "CONTROLS",
+    "target2_hardware": "NO_CAMERA_CONTROL",
+    "hybrid_correct": 9,
+    "hybrid_accuracy": 1.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  },
+  {
+    "scenario_id": "PERMISSION_GRANTED_NO_CAMERA",
+    "cohort": "ACCUMULATED_89",
+    "samples": 13,
+    "ground_truth_target": "CONTROLS",
+    "target2_hardware": "NO_CAMERA_CONTROL",
+    "hybrid_correct": 13,
+    "hybrid_accuracy": 1.0,
+    "tier1_coverage": 0.0,
+    "evidence_soundness": "SUFFICIENT"
+  }
+]
